@@ -416,6 +416,129 @@ textarea.form-control{resize:vertical;min-height:70px}
   .data-table{min-width:480px}
 }
 
+/* ── FB Tracker & Ledger specific layout ── */
+
+/* Desktop: FB Tracker grid */
+#fb-main-grid{
+  display:grid;
+  grid-template-columns:1fr 0.55fr;
+  gap:1rem;
+}
+
+/* Desktop: Ledger grids */
+#ledger-top-row{
+  display:grid;
+  grid-template-columns:1fr 2fr;
+  gap:1rem;
+  margin-bottom:1rem;
+}
+#ledger-main-grid{
+  display:grid;
+  grid-template-columns:1fr 2fr;
+  gap:1rem;
+}
+
+@media(max-width:768px){
+  /* FB Tracker: stack, Daily Sync first */
+  #fb-main-grid{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  #fb-right-col{
+    order:-1; /* Daily Cost Sync সবার উপরে */
+  }
+  #fb-left-col{order:1}
+
+  /* FB Tracker right panel — bigger touch targets */
+  #fb-right-col .form-control{
+    height:48px!important;
+    font-size:15px!important;
+  }
+  #fb-right-col #lifetimeSpent{
+    height:56px!important;
+    font-size:20px!important;
+  }
+  #fb-right-col select{height:48px!important}
+  #fb-right-col #fbSaveBtn{
+    padding:14px!important;
+    font-size:15px!important;
+  }
+  /* FB table horizontal scroll */
+  #fb-left-col .table-card,
+  #fb-left-col table{min-width:unset}
+  #fb-left-col [style*="max-height:380px"],
+  #fb-left-col [style*="max-height:280px"]{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  /* Add Ad row — stack on mobile */
+  #fb-left-col [style*="display:flex;gap:8px"]{
+    flex-direction:column!important;
+  }
+  #fb-left-col [style*="display:flex;gap:8px"] input,
+  #fb-left-col [style*="display:flex;gap:8px"] button{
+    width:100%!important;
+  }
+
+  /* Ledger: stack, form first */
+  #ledger-top-row{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-bottom:12px;
+  }
+  #ledger-main-grid{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  #ledger-form-col{
+    order:-1; /* Form সবার উপরে */
+    position:static!important; /* sticky বাদ */
+  }
+  #ledger-table-col{order:1}
+
+  /* Ledger form — bigger touch targets */
+  #ledger-form-col .form-control{
+    height:46px!important;
+    font-size:15px!important;
+  }
+  #ledger-form-col #ledgerSaveBtn{
+    padding:14px!important;
+    font-size:15px!important;
+  }
+  /* Ledger form-grid single col */
+  #ledger-form-col .form-grid{
+    grid-template-columns:1fr!important;
+    gap:8px;
+  }
+  /* Ledger search input full width */
+  #ledger-top-row .search-box{
+    width:100%!important;
+  }
+  /* Ledger top row balance card */
+  #ledger-top-row > *:first-child{
+    padding:14px!important;
+  }
+  /* Ledger tables scroll */
+  #ledger-table-col [style*="max-height"]{
+    max-height:260px!important;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  #ledger-table-col .data-table{
+    min-width:480px;
+  }
+  /* Name dropdown full width */
+  #nameDropdown{
+    font-size:15px!important;
+  }
+  #nameDropdown > div{
+    padding:13px 14px!important;
+  }
+}
+
 /* Print */
 @media print{
   .sidebar,.top-header,.btn,.action-btn,.table-toolbar,

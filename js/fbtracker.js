@@ -20,10 +20,10 @@ const fbModule = (() => {
 
   function renderLayout() {
     document.getElementById('section-fbtracker').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 0.55fr;gap:1rem">
+    <div id="fb-main-grid">
 
       <!-- LEFT COLUMN -->
-      <div>
+      <div id="fb-left-col">
         <!-- Ad Performance Table -->
         <div class="table-card mb-3" style="overflow:hidden">
           <div style="padding:10px 16px;background:#212529;color:#fff;display:flex;justify-content:space-between;align-items:center">
@@ -79,7 +79,7 @@ const fbModule = (() => {
       </div>
 
       <!-- RIGHT: Daily Cost Sync -->
-      <div class="table-card" style="overflow:hidden">
+      <div id="fb-right-col" class="table-card" style="overflow:hidden">
         <div style="padding:12px 16px;background:#3949ab;color:#fff;font-size:15px;font-weight:700">
           <i class="bi bi-cloud-upload me-2"></i>Daily Cost Sync
         </div>

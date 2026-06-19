@@ -57,7 +57,7 @@ const ledgerModule = (() => {
   function renderLayout() {
     document.getElementById('section-ledger').innerHTML = `
     <!-- TOP ROW -->
-    <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem">
+    <div id="ledger-top-row">
       <div class="table-card" style="padding:20px;text-align:center;background:white">
         <small style="color:#6b7280;text-transform:uppercase;font-weight:700;font-size:11px">Overall Net Balance</small>
         <div id="topNetBalance" style="font-size:28px;font-weight:800;color:#3949ab;margin:6px 0">৳ 0</div>
@@ -71,10 +71,10 @@ const ledgerModule = (() => {
     </div>
 
     <!-- MAIN GRID -->
-    <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem">
+    <div id="ledger-main-grid">
 
       <!-- LEFT: Form -->
-      <div class="table-card" style="padding:20px;position:sticky;top:20px">
+      <div id="ledger-form-col" class="table-card" style="padding:20px;position:sticky;top:20px">
         <h5 style="font-weight:700;color:#212529;margin-bottom:18px"><i class="bi bi-plus-circle-fill" style="color:#3949ab"></i> New Transaction</h5>
 
         <!-- Person Name with dropdown -->
@@ -112,7 +112,7 @@ const ledgerModule = (() => {
       </div>
 
       <!-- RIGHT: Tables -->
-      <div>
+      <div id="ledger-table-col">
         <!-- Summary Table -->
         <div class="table-card" style="margin-bottom:1rem;overflow:hidden">
           <div style="padding:14px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px">Person-wise Net Balance</div>
