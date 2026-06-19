@@ -145,6 +145,19 @@ const ledgerModule = (() => {
       </div>
     </div>`;
 
+    // Mobile: Form সবার উপরে, single column layout
+    if (window.innerWidth <= 768) {
+      const topRow  = document.getElementById('ledger-top-row');
+      const mainGrid = document.getElementById('ledger-main-grid');
+      const formCol  = document.getElementById('ledger-form-col');
+      if (topRow)  topRow.style.cssText  = 'display:flex!important;flex-direction:column;gap:10px;margin-bottom:12px';
+      if (mainGrid) mainGrid.style.cssText = 'display:flex!important;flex-direction:column;gap:12px';
+      if (formCol && mainGrid) {
+        formCol.style.position = 'static'; // sticky বাদ
+        mainGrid.insertBefore(formCol, mainGrid.firstChild); // Form → top
+      }
+    }
+
     // Close dropdown on outside click
     document.addEventListener('click', e => {
       if (!document.getElementById('pName')?.contains(e.target)) {

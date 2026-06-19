@@ -116,6 +116,16 @@ const fbModule = (() => {
         </div>
       </div>
     </div>`;
+
+    // Mobile: Daily Cost Sync panel সবার উপরে, single column
+    if (window.innerWidth <= 768) {
+      const grid  = document.getElementById('fb-main-grid');
+      const right = document.getElementById('fb-right-col');
+      if (grid && right) {
+        grid.style.cssText = 'display:flex!important;flex-direction:column;gap:12px';
+        grid.insertBefore(right, grid.firstChild); // Daily Sync → top
+      }
+    }
   }
 
   function renderAdTable() {

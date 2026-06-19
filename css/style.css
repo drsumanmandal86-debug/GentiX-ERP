@@ -267,13 +267,21 @@ textarea.form-control{resize:vertical;min-height:70px}
   body{overflow:auto}
   .hide-mobile{display:none!important}
 
-  /* Sidebar — mobile drawer */
+  /* Sidebar — mobile drawer (force off-screen) */
   .sidebar{
-    position:fixed;left:-100%;top:0;width:260px;
-    z-index:1070;transition:left .3s ease;
+    position:fixed!important;
+    left:-100%!important;
+    top:0!important;
+    width:260px!important;
+    z-index:1070;
+    transition:left .3s ease;
   }
-  .sidebar.mobile-open{left:0}
-  .sidebar.collapsed{width:260px} /* keep full width on mobile */
+  .sidebar.mobile-open{
+    left:0!important;
+  }
+  .sidebar.collapsed{
+    width:260px!important; /* desktop collapsed width নয়, full width রাখো */
+  }
 
   /* Sidebar overlay backdrop */
   .sidebar-overlay{
@@ -282,8 +290,8 @@ textarea.form-control{resize:vertical;min-height:70px}
   }
   .sidebar-overlay.show{display:block}
 
-  /* Main layout full width */
-  .main-layout{margin-left:0!important}
+  /* Main layout full width — no sidebar margin */
+  .main-layout{margin-left:0!important;width:100%!important}
   .main-content{padding:12px 14px}
 
   /* Header compact */
