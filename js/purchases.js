@@ -134,10 +134,12 @@ const purchasesModule = (() => {
         <div class="form-group"><label class="form-label">Total (৳)</label>
           <input type="number" id="pe-total" class="form-control" value="${p.total||0}" readonly style="background:#f0f4ff;font-weight:700;color:#3949ab"></div>
       </div>
-      <p style="font-size:12px;color:#9ca3af;margin-top:8px"><i class="bi bi-info-circle"></i> Supplier due will be adjusted by the difference.</p>`,
+      <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;color:#92400e">
+        <i class="bi bi-info-circle me-1"></i>
+        Edit করলে <strong>Supplier Due, Stock Qty এবং Buy Price</strong> — তিনটিই auto-update হবে।
+      </div>`,
       `<button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-       <button class="btn btn-primary" onclick="purchasesModule.updatePurchase('${id}',${p.total||0},'${p.supplierId||''}','${p.productId||''}',${p.qty||0})">Update Purchase</button>`);
-    // Live total calculation
+       <button class="btn btn-primary" onclick="purchasesModule.updatePurchase('${id}',${p.total||0},'${p.supplierId||''}','${p.productId||''}',${p.qty||0},${p.price||0})">Update Purchase</button>`);
     setTimeout(()=>{
       const qEl=document.getElementById('pe-qty'),prEl=document.getElementById('pe-price'),tEl=document.getElementById('pe-total');
       const calc=()=>{if(qEl&&prEl&&tEl)tEl.value=n(qEl.value)*n(prEl.value);};
@@ -145,18 +147,60 @@ const purchasesModule = (() => {
     },100);
   }
 
-  async function updatePurchase(id,oldTotal,suppId,prodId,oldQty){
+  async function updatePurchase(id,oldTotal,suppId,prodId,oldQty,oldPrice){
     const date=document.getElementById('pe-date')?.value;
     const qty=ni(document.getElementById('pe-qty')?.value);
     const price=n(document.getElementById('pe-price')?.value);
     if(!qty||!price){toast('Qty and price required','error');return;}
-    const newTotal=qty*price;const diff=newTotal-oldTotal;const qtyDiff=qty-oldQty;
+    const newTotal=qty*price;
+    const totalDiff=newTotal-oldTotal;
+    const qtyDiff=qty-oldQty;
     try{
       const batch=window.db.batch();
-      batch.update(window.db.collection('purchases').doc(id),{date,qty,price,total:newTotal,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-      if(suppId&&diff!==0)batch.update(window.db.collection('suppliers').doc(suppId),{totalPurchase:firebase.firestore.FieldValue.increment(diff),currentDue:firebase.firestore.FieldValue.increment(diff)});
-      if(prodId&&qtyDiff!==0)batch.update(window.db.collection('products').doc(prodId),{currentStock:firebase.firestore.FieldValue.increment(qtyDiff)});
-      await batch.commit();closeModal();toast('Purchase updated!','success');await fetchPurchases();
+
+      // 1. Update purchase record
+      batch.update(window.db.collection('purchases').doc(id),{
+        date,qty,price,total:newTotal,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // 2. Adjust Supplier totalPurchase + currentDue by difference
+      if(suppId&&totalDiff!==0){
+        batch.update(window.db.collection('suppliers').doc(suppId),{
+          totalPurchase:firebase.firestore.FieldValue.increment(totalDiff),
+          currentDue:firebase.firestore.FieldValue.increment(totalDiff)
+        });
+      }
+
+      // 3. Recalculate product stock + weighted average buy price
+      if(prodId){
+        const prodSnap=await window.db.collection('products').doc(prodId).get();
+        if(prodSnap.exists){
+          const pd=prodSnap.data();
+          const curStock=pd.currentStock||0;
+          const curBuyPrice=pd.buyPrice||0;
+          const newStock=curStock+qtyDiff;
+
+          // Weighted average: remove old contribution, add new
+          // curStock × curBuyPrice = current total inventory value
+          const curTotalValue=curStock*curBuyPrice;
+          const newTotalValue=curTotalValue-(oldQty*(oldPrice||0))+(qty*price);
+          const newAvgPrice=newStock>0?parseFloat((newTotalValue/newStock).toFixed(2)):price;
+
+          batch.update(window.db.collection('products').doc(prodId),{
+            currentStock:newStock,
+            buyPrice:newAvgPrice>0?newAvgPrice:price
+          });
+        } else {
+          // product doc not found — only adjust stock
+          if(qtyDiff!==0) batch.update(window.db.collection('products').doc(prodId),{currentStock:firebase.firestore.FieldValue.increment(qtyDiff)});
+        }
+      }
+
+      await batch.commit();
+      closeModal();
+      toast('Purchase updated! Stock, Buy Price ও Supplier Due সমন্বয় হয়েছে।','success');
+      await fetchPurchases();
     }catch(e){toast('Error: '+e.message,'error');}
   }
 
