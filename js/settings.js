@@ -76,7 +76,22 @@ const settingsModule = (() => {
       </div>
     </div>
 
-    <!-- Row 2: Categories + Sub-categories -->
+    <!-- Row 2: Data Repair Tools -->
+    <div class="table-card mb-3" style="padding:16px;border-left:4px solid #f59e0b">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <h6 style="font-weight:700;margin:0;color:#92400e"><i class="bi bi-tools me-2"></i>Data Integrity Repair</h6>
+          <small style="color:#9ca3af">Import করা purchases-এ productId নেই — এই button দিয়ে auto-fix করুন</small>
+        </div>
+        <button class="btn btn-sm" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-weight:700"
+          onclick="settingsModule.repairProductLinks()">
+          <i class="bi bi-link-45deg"></i> Repair Purchase → Product Links
+        </button>
+      </div>
+      <div id="repairStatus" style="margin-top:8px;font-size:12px;color:#6b7280"></div>
+    </div>
+
+    <!-- Row 3: Categories + Sub-categories -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
       <div class="table-card" style="padding:16px">
         <h6 style="font-weight:700;margin-bottom:12px;font-size:14px">Categories</h6>
@@ -251,6 +266,48 @@ const settingsModule = (() => {
     renderCategoryList(); renderSubcategoryList();
   }
 
+  async function repairProductLinks() {
+    const statusEl = document.getElementById('repairStatus');
+    if (statusEl) statusEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;margin-right:6px"></span>Scanning purchases…';
+    try {
+      // 1. Build product name → ID map
+      const prodSnap = await window.db.collection('products').get();
+      const nameToId = {};
+      prodSnap.docs.forEach(d => {
+        const name = (d.data().name||'').trim().toLowerCase();
+        if (name) nameToId[name] = d.id;
+      });
+
+      // 2. Find purchases without productId
+      const purSnap = await window.db.collection('purchases').get();
+      const toFix = purSnap.docs.filter(d => !d.data().productId && d.data().product);
+      if (!toFix.length) {
+        if (statusEl) statusEl.innerHTML = '✅ সব purchases-এ productId আছে। কোনো repair দরকার নেই।';
+        return;
+      }
+
+      // 3. Batch update productId
+      const BATCH_SIZE = 400;
+      let fixed = 0, skipped = 0;
+      for (let i = 0; i < toFix.length; i += BATCH_SIZE) {
+        const batch = window.db.batch();
+        toFix.slice(i, i + BATCH_SIZE).forEach(d => {
+          const prodName = (d.data().product||'').trim().toLowerCase();
+          const prodId = nameToId[prodName];
+          if (prodId) { batch.update(d.ref, { productId: prodId }); fixed++; }
+          else skipped++;
+        });
+        await batch.commit();
+        if (statusEl) statusEl.innerHTML = `⏳ Processing… ${Math.min(i+BATCH_SIZE, toFix.length)}/${toFix.length}`;
+      }
+      if (statusEl) statusEl.innerHTML = `✅ Done! ${fixed} purchases repaired, ${skipped} skipped (product name match নেই)।`;
+      toast(`Repair complete: ${fixed} links fixed!`, 'success');
+    } catch(e) {
+      if (statusEl) statusEl.innerHTML = `❌ Error: ${e.message}`;
+      toast('Repair error: '+e.message, 'error');
+    }
+  }
+
   function toggleImport() {
     const box = document.getElementById('csv-import-container');
     const icon = document.getElementById('importDrawerIcon');
@@ -382,5 +439,5 @@ const settingsModule = (() => {
   function setVal(id,v){const el=document.getElementById(id);if(el)el.value=v;}
   function getVal(id){return document.getElementById(id)?.value||'';}
 
-  return { load, saveProfile, saveSheetsUrl, testSheetsSync, addCategory, addSubcategory, removeCat, removeSubcat, toggleImport, updateAccount, saveResetPassword, resetSystem, exportData, clearAllData, logout, refresh };
+  return { load, saveProfile, saveSheetsUrl, testSheetsSync, addCategory, addSubcategory, removeCat, removeSubcat, toggleImport, repairProductLinks, updateAccount, saveResetPassword, resetSystem, exportData, clearAllData, logout, refresh };
 })();

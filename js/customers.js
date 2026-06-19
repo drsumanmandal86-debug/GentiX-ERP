@@ -50,11 +50,12 @@ const customersModule = (() => {
     });
     if (!list.length) { setEl('cu-table',`<div class="empty-state"><div class="empty-icon">👥</div><p>No customers yet</p></div>`); return; }
     setEl('cu-table', `<table class="data-table"><thead><tr>
-      <th>#</th><th>Customer Name</th><th>Phone</th><th>Address</th>
+      <th>Date</th><th>Customer ID</th><th>Name</th><th>Phone</th><th>Address</th>
       <th>Total Order</th><th>Total COD</th><th>Actions</th>
     </tr></thead><tbody>
     ${list.map((c,i) => `<tr>
-      <td>${i+1}</td>
+      <td><small style="color:#9ca3af">${fmtDate(c.date||c.createdAt)||'—'}</small></td>
+      <td><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap">${c.id}</span></td>
       <td><strong>${c.name}</strong></td>
       <td>${c.phone||'—'}</td>
       <td><small>${c.address||'—'}</small></td>

@@ -50,11 +50,12 @@ const suppliersModule = (() => {
     });
     if (!list.length) { setEl('sup-table',`<div class="empty-state"><div class="empty-icon">🏭</div><p>No suppliers yet</p></div>`); return; }
     setEl('sup-table', `<table class="data-table"><thead><tr>
-      <th>#</th><th>Supplier Name</th><th>Phone</th><th>Address</th>
+      <th>Date</th><th>Supplier ID</th><th>Company/Name</th><th>Phone</th><th>Address</th>
       <th>Total Purchase</th><th>Current Due</th><th>Actions</th>
     </tr></thead><tbody>
     ${list.map((s,i) => `<tr>
-      <td>${i+1}</td>
+      <td><small style="color:#9ca3af">${fmtDate(s.date||s.createdAt)||'—'}</small></td>
+      <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap">${s.id}</span></td>
       <td><strong>${s.name}</strong></td>
       <td>${s.phone||'—'}</td>
       <td><small>${s.address||'—'}</small></td>

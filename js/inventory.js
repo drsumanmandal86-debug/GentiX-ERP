@@ -63,15 +63,16 @@ const inventoryModule = (() => {
     });
     if (!list.length) { setEl('inv-table',`<div class="empty-state"><div class="empty-icon">📦</div><p>No products found</p></div>`); return; }
     setEl('inv-table', `<table class="data-table"><thead><tr>
-      <th>#</th><th>Product Name</th><th>Category</th><th>Sub-Category</th>
+      <th>Date</th><th>ID</th><th>Product Name</th><th>Category</th><th>Sub-Category</th>
       <th>Buy Price</th><th>Sell Price</th><th>Stock</th><th>Stock Value</th><th>Actions</th>
     </tr></thead><tbody>
     ${list.map((p,i) => {
       const sc = (p.currentStock||0)===0 ? 'badge-danger' : (p.currentStock||0)<10 ? 'badge-warning' : 'badge-success';
       const margin = (p.sellPrice||0)>0 ? (((p.sellPrice-p.buyPrice)/p.sellPrice)*100).toFixed(1) : '—';
       return `<tr>
-        <td>${i+1}</td>
-        <td><strong>${p.name}</strong><br><small style="color:#9ca3af">${p.sku||''}</small></td>
+        <td><small style="color:#9ca3af">${fmtDate(p.date||p.createdAt)||'—'}</small></td>
+        <td><span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap">${p.id}</span></td>
+        <td><strong>${p.name}</strong></td>
         <td>${p.category||'—'}</td>
         <td>${p.subcategory||'—'}</td>
         <td>${fmt(p.buyPrice)}</td>
