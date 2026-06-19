@@ -1,0 +1,8 @@
+firebase.json
+.firebaserc
+.firebaseignore
+firestore.rules
+*.bat
+*.sh
+*.exe
+**/.*

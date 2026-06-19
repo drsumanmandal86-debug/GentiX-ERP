@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GentiX Fashion ERP</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContainer">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">G</div>
+    <span class="brand-text">GentiX ERP</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a class="nav-item active" data-section="dashboard">
+      <i class="bi bi-speedometer2"></i><span class="nav-label">Dashboard</span>
+    </a>
+    <a class="nav-item" data-section="inventory">
+      <i class="bi bi-box-seam"></i><span class="nav-label">Inventory</span>
+    </a>
+    <a class="nav-item" data-section="purchases">
+      <i class="bi bi-cart-plus"></i><span class="nav-label">Purchases</span>
+    </a>
+    <a class="nav-item" data-section="sales">
+      <i class="bi bi-cart-check"></i><span class="nav-label">Sales</span>
+    </a>
+    <a class="nav-item" data-section="expenses">
+      <i class="bi bi-wallet2"></i><span class="nav-label">Expenses</span>
+    </a>
+    <a class="nav-item" data-section="cashbook">
+      <i class="bi bi-journal-text"></i><span class="nav-label">Cash Book</span>
+    </a>
+    <a class="nav-item" data-section="fbtracker" style="border-left-color:transparent">
+      <i class="bi bi-facebook" style="color:#4267B2"></i><span class="nav-label">FB Ad Tracker</span>
+    </a>
+    <a class="nav-item" data-section="ledger">
+      <i class="bi bi-person-lines-fill"></i><span class="nav-label">Personal Ledger</span>
+    </a>
+    <a class="nav-item" data-section="suppliers">
+      <i class="bi bi-truck"></i><span class="nav-label">Suppliers</span>
+    </a>
+    <a class="nav-item" data-section="customers">
+      <i class="bi bi-people"></i><span class="nav-label">Customers</span>
+    </a>
+    <a class="nav-item" data-section="reports">
+      <i class="bi bi-graph-up-arrow"></i><span class="nav-label">Reports</span>
+    </a>
+    <a class="nav-item" data-section="settings">
+      <i class="bi bi-gear"></i><span class="nav-label">Settings</span>
+    </a>
+  </nav>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout" id="mainLayout">
+  <div class="top-header">
+    <div class="header-left">
+      <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+      <h1 class="header-title" id="pageTitle">Dashboard Overview</h1>
+    </div>
+    <div class="header-right">
+      <div class="user-badge">
+        <div class="user-avatar" id="userInitial">D</div>
+        <span id="userDisplayName">Dr. Suman</span>
+      </div>
+      <!-- Quick Reset (header shortcut) -->
+      <button class="btn btn-sm" title="Reset All Data — Settings এ যাবে"
+        style="background:#fff5f5;border:1px solid #fecaca;color:#dc2626;font-size:12px;font-weight:600;padding:6px 12px;gap:5px"
+        onclick="navigateTo('settings')">
+        <i class="bi bi-arrow-counterclockwise"></i> Reset
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="firebase.auth().signOut().then(()=>location.href='index.html')">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div class="page-section active" id="section-dashboard">
+
+      <!-- Header + Filters -->
+      <div class="dash-header">
+        <div class="dash-title"><i class="bi bi-speedometer2 me-2"></i>Business Dashboard</div>
+        <div class="time-filters">
+          <button class="time-filter active" data-period="lifetime" onclick="dashModule.setActivePeriod('lifetime');dashModule.refresh()">Lifetime</button>
+          <button class="time-filter" data-period="today" onclick="dashModule.setActivePeriod('today');dashModule.refresh()">Today</button>
+          <button class="time-filter" data-period="yesterday" onclick="dashModule.setActivePeriod('yesterday');dashModule.refresh()">Yesterday</button>
+          <button class="time-filter" data-period="last7" onclick="dashModule.setActivePeriod('last7');dashModule.refresh()">Last 7 Days</button>
+          <button class="time-filter" data-period="thisMonth" onclick="dashModule.setActivePeriod('thisMonth');dashModule.refresh()">This Month</button>
+          <button class="time-filter" data-period="lastMonth" onclick="dashModule.setActivePeriod('lastMonth');dashModule.refresh()">Last Month</button>
+        </div>
+      </div>
+
+      <!-- Row 1 -->
+      <div class="kpi-grid">
+        <div class="kpi-card g-blue">
+          <div class="kpi-label">Total Sales</div>
+          <div class="kpi-value">৳ <span id="dash-total-sales">0</span></div>
+        </div>
+        <div class="kpi-card g-green">
+          <div class="kpi-label">Cash In Hand</div>
+          <div class="kpi-value">৳ <span id="dash-cash-hand">0</span></div>
+        </div>
+        <div class="kpi-card g-stock">
+          <div class="kpi-label">Stock Value</div>
+          <div class="kpi-value">৳ <span id="dash-stock-value">0</span></div>
+        </div>
+        <div class="kpi-card g-red">
+          <div class="kpi-label">Total Expenses</div>
+          <div class="kpi-value">৳ <span id="dash-expenses">0</span></div>
+        </div>
+        <div class="kpi-card g-dark">
+          <div class="kpi-label">Total Capital</div>
+          <div class="kpi-value">৳ <span id="dash-capital">0</span></div>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="kpi-grid">
+        <div class="kpi-card g-cust">
+          <div class="kpi-label">Customer Due</div>
+          <div class="kpi-value">৳ <span id="dash-cust-due">0</span></div>
+        </div>
+        <div class="kpi-card g-supp">
+          <div class="kpi-label">Supplier Due</div>
+          <div class="kpi-value">৳ <span id="dash-supp-due">0</span></div>
+        </div>
+        <div class="kpi-card profit-pos" id="dash-profit-card">
+          <div class="kpi-label">Net Profit (After COGS)</div>
+          <div class="kpi-value">৳ <span id="dash-net-profit">0</span></div>
+        </div>
+        <div class="kpi-card bep">
+          <div class="kpi-label">Break-Even Point</div>
+          <div class="kpi-value" id="dash-breakeven">৳ 0 (0%)</div>
+        </div>
+        <div class="kpi-card g-cyan">
+          <div class="kpi-label">COGS (Sold Item Cost)</div>
+          <div class="kpi-value">৳ <span id="dash-cogs">0</span></div>
+        </div>
+      </div>
+
+      <!-- Investment Intelligence -->
+      <p class="section-divider"><i class="bi bi-graph-up me-1"></i>Investment &amp; Business Intelligence</p>
+      <div class="kpi-grid">
+        <div class="kpi-card g-red">
+          <div class="kpi-label">Total Investment</div>
+          <div class="kpi-value">৳ <span id="dash-investment">0</span></div>
+        </div>
+        <div class="kpi-card g-teal">
+          <div class="kpi-label">Business ROI</div>
+          <div class="kpi-value"><span id="dash-roi">0%</span></div>
+        </div>
+        <div class="kpi-card g-forecast">
+          <div class="kpi-label">30D Forecast (Profit)</div>
+          <div class="kpi-value">৳ <span id="dash-forecast">0</span></div>
+        </div>
+        <div class="kpi-card g-brown">
+          <div class="kpi-label">Safe Buying Limit</div>
+          <div class="kpi-value">৳ <span id="dash-safe-buying">0</span></div>
+        </div>
+        <div class="kpi-card g-orange">
+          <div class="kpi-label">Exp/Sales Ratio</div>
+          <div class="kpi-value"><span id="dash-exp-ratio">0%</span></div>
+        </div>
+      </div>
+
+      <!-- Bottom Cards -->
+      <div class="bottom-grid">
+        <div class="info-card">
+          <div class="info-card-title blue"><i class="bi bi-star-fill"></i> Top Selling Items</div>
+          <div id="dash-top-selling"><div class="loading-state">Loading…</div></div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title red"><i class="bi bi-exclamation-triangle-fill"></i> Low Stock Alerts</div>
+          <div id="dash-low-stock"><div class="loading-state">Loading…</div></div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title amber"><i class="bi bi-wallet2"></i> Payable Suppliers</div>
+          <div id="dash-payable-suppliers"><div class="loading-state">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODULE SECTIONS (rendered dynamically) ===== -->
+    <div class="page-section" id="section-inventory"></div>
+    <div class="page-section" id="section-purchases"></div>
+    <div class="page-section" id="section-sales"></div>
+    <div class="page-section" id="section-expenses"></div>
+    <div class="page-section" id="section-cashbook"></div>
+    <div class="page-section" id="section-fbtracker"></div>
+    <div class="page-section" id="section-ledger"></div>
+    <div class="page-section" id="section-suppliers"></div>
+    <div class="page-section" id="section-customers"></div>
+    <div class="page-section" id="section-reports"></div>
+    <div class="page-section" id="section-settings"></div>
+
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/sales.js"></script>
+<script src="js/purchases.js"></script>
+<script src="js/expenses.js"></script>
+<script src="js/cashbook.js"></script>
+<script src="js/suppliers.js"></script>
+<script src="js/customers.js"></script>
+<script src="js/fbtracker.js"></script>
+<script src="js/ledger.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/settings.js"></script>
+
+<script>
+firebase.initializeApp(firebaseConfig);
+window.db   = firebase.firestore();
+window.auth = firebase.auth();
+
+const PAGE_TITLES = {
+  dashboard:'Dashboard Overview', inventory:'Inventory', purchases:'Purchases',
+  sales:'Sales', expenses:'Expenses', cashbook:'Cash Book',
+  fbtracker:'Facebook Ad Tracker', ledger:'Personal Ledger',
+  suppliers:'Suppliers', customers:'Customers', reports:'Reports', settings:'Settings'
+};
+
+const MODULES = {
+  dashboard:dashModule, inventory:inventoryModule, purchases:purchasesModule,
+  sales:salesModule, expenses:expensesModule, cashbook:cashbookModule,
+  fbtracker:fbModule, ledger:ledgerModule, suppliers:suppliersModule,
+  customers:customersModule, reports:reportsModule, settings:settingsModule
+};
+
+let loadedSections = new Set();
+window.appSettings = {};
+
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+
+  const name = user.displayName || user.email?.split('@')[0] || 'User';
+  const display = 'Dr. ' + name.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ');
+  const el = document.getElementById('userDisplayName');
+  if (el) el.textContent = display;
+  const init = document.getElementById('userInitial');
+  if (init) init.textContent = name[0]?.toUpperCase() || 'D';
+
+  try {
+    const snap = await window.db.collection('settings').doc('config').get();
+    if (snap.exists) window.appSettings = snap.data();
+  } catch(e) {}
+
+  await navigateTo('dashboard');
+});
+
+async function navigateTo(section) {
+  if (!MODULES[section]) return;
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+  document.querySelectorAll('.page-section').forEach(el => {
+    el.classList.toggle('active', el.id === 'section-' + section);
+  });
+  const titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = PAGE_TITLES[section] || section;
+
+  if (section === 'dashboard' || !loadedSections.has(section)) {
+    await MODULES[section].load();
+    if (section !== 'dashboard') loadedSections.add(section);
+  }
+}
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => navigateTo(el.dataset.section));
+});
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('mainLayout').classList.toggle('expanded');
+}
+</script>
+</body>
+</html>

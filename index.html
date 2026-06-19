@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GentiX ERP — Login</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">G</div>
+      <h1>GentiX ERP</h1>
+      <p>Business Management System</p>
+    </div>
+    <div id="loginError" class="login-error"></div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Email Address</label>
+      <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Password</label>
+      <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:#9ca3af">
+      Powered by GentiX ERP &bull; Firebase Edition
+    </p>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="js/config.js"></script>
+<script>
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  auth.onAuthStateChanged(user => {
+    if (user) window.location.href = 'app.html';
+  });
+
+  async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass  = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const btn   = document.getElementById('loginBtn');
+
+    errEl.style.display = 'none';
+    if (!email || !pass) {
+      errEl.textContent = 'Please enter your email and password.';
+      errEl.style.display = 'block'; return;
+    }
+    btn.textContent = 'Signing in…'; btn.disabled = true;
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      window.location.href = 'app.html';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      btn.textContent = 'Sign In'; btn.disabled = false;
+    }
+  }
+
+  document.addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+</script>
+</body>
+</html>

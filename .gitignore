@@ -1,0 +1,14 @@
+# Firebase cache
+.firebase/
+hosting..cache
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Node (if ever used)
+node_modules/
