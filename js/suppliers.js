@@ -8,8 +8,33 @@ const suppliersModule = (() => {
   }
 
   async function fetchSuppliers() {
-    const snap = await window.db.collection('suppliers').orderBy('name').get();
-    suppliers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Fetch suppliers + all purchases in parallel
+    const [supSnap, purSnap] = await Promise.all([
+      window.db.collection('suppliers').orderBy('name').get(),
+      window.db.collection('purchases').get()
+    ]);
+    suppliers = supSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Recalculate totalPurchase from purchases collection (source of truth)
+    // This avoids showing corrupted values from the totalPurchase field
+    const purBySupplier = {};
+    purSnap.docs.forEach(d => {
+      const sid = d.data().supplierId;
+      if (sid) purBySupplier[sid] = (purBySupplier[sid]||0) + (d.data().total||0);
+    });
+    // Silently update any corrupted totalPurchase in background
+    const batch = window.db.batch();
+    let needsUpdate = false;
+    suppliers.forEach(s => {
+      const correctTotal = purBySupplier[s.id] || 0;
+      if (s.totalPurchase !== correctTotal) {
+        batch.update(window.db.collection('suppliers').doc(s.id), { totalPurchase: correctTotal });
+        s.totalPurchase = correctTotal; // update local too
+        needsUpdate = true;
+      }
+    });
+    if (needsUpdate) batch.commit().catch(()=>{}); // fire and forget
+
     renderStats(); renderTable();
   }
 
@@ -34,9 +59,10 @@ const suppliersModule = (() => {
   }
 
   function renderStats() {
-    const total = suppliers.reduce((s,x) => s+(x.totalPurchase||x.totalPurchases||0), 0);
+    // Use recalculated totalPurchase (fixed in fetchSuppliers via purchases collection)
+    const total = suppliers.reduce((s,x) => s+(x.totalPurchase||0), 0);
     const due   = suppliers.reduce((s,x) => s+(x.currentDue||x.totalDue||0), 0);
-    const paid  = total - due;
+    const paid  = Math.max(0, total - due); // never show negative paid
     setEl('sup-count', suppliers.length);
     setEl('sup-total', fmt(total));
     setEl('sup-paid', fmt(paid));
