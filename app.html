@@ -411,15 +411,6 @@ function makeMobileReady() {
     t.style.minWidth = '480px';
   });
 
-  // 7. FB Tracker — Daily Cost Sync সবার উপরে
-  const fbGrid  = document.getElementById('fb-main-grid');
-  const fbRight = document.getElementById('fb-right-col');
-  if (fbGrid && fbRight && fbRight !== fbGrid.firstElementChild) {
-    fbGrid.insertBefore(fbRight, fbGrid.firstChild);
-    fbRight.style.width        = '100%';
-    fbRight.style.marginBottom = '12px';
-  }
-
   // 8. Ledger — Form সবার উপরে, sticky বাদ
   const ldGrid = document.getElementById('ledger-main-grid');
   const ldForm = document.getElementById('ledger-form-col');
