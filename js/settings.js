@@ -17,6 +17,7 @@ const settingsModule = (() => {
     setVal('shopName', s.businessName||'GentiX ERP');
     setVal('shopPhone', s.businessPhone||'');
     setVal('shopAddress', s.businessAddress||'');
+    setVal('sheetsUrl', s.sheetsWebAppUrl||'');
 
     // Categories
     categories   = s.categories   || [];
@@ -62,6 +63,28 @@ const settingsModule = (() => {
         <div class="form-group"><label class="form-label" style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">Address</label>
           <input type="text" id="shopAddress" class="form-control" placeholder="Location"></div>
         <button class="btn btn-success" onclick="settingsModule.saveProfile()" style="padding:9px 20px;font-size:13px;font-weight:700">SAVE</button>
+      </div>
+      <!-- Google Sheets Sync URL -->
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f3f4f6">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:flex-end">
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px">
+              <span style="background:#34a853;border-radius:4px;padding:2px 6px;color:#fff;font-size:11px;font-weight:700">SHEETS</span>
+              Google Sheets Sync URL (GAS Web App URL)
+              <span id="syncStatus" style="font-size:11px;color:#9ca3af"></span>
+            </label>
+            <input type="url" id="sheetsUrl" class="form-control"
+              placeholder="https://script.google.com/macros/s/AKf.../exec"
+              style="font-size:12px;font-family:monospace">
+            <small style="color:#9ca3af;font-size:11px">
+              GAS project-এ SheetSync.gs যোগ করে Deploy করুন → URL paste করুন
+            </small>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn btn-success btn-sm" onclick="settingsModule.saveSheetsUrl()" style="font-size:12px;font-weight:700">SAVE URL</button>
+            <button class="btn btn-outline btn-sm" onclick="settingsModule.testSheetsSync()" style="font-size:12px">TEST</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -245,6 +268,35 @@ const settingsModule = (() => {
     toast('Profile Saved!','success');
   }
 
+  async function saveSheetsUrl() {
+    const url = getVal('sheetsUrl').trim();
+    if (!url) { toast('URL দিন','error'); return; }
+    if (!url.includes('script.google.com')) { toast('Valid GAS URL দিন (script.google.com)','error'); return; }
+    await window.db.collection('settings').doc('config').set({ sheetsWebAppUrl: url }, { merge: true });
+    window.appSettings.sheetsWebAppUrl = url;
+    const st = document.getElementById('syncStatus');
+    if (st) { st.textContent = '✓ Saved'; st.style.color = '#27ae60'; }
+    toast('Sheets Sync URL saved!','success');
+  }
+
+  async function testSheetsSync() {
+    const url = getVal('sheetsUrl').trim() || window.appSettings?.sheetsWebAppUrl;
+    if (!url) { toast('আগে URL save করুন','error'); return; }
+    const st = document.getElementById('syncStatus');
+    if (st) { st.textContent = 'Testing…'; st.style.color = '#f59e0b'; }
+    try {
+      await fetch(url, {
+        method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ type:'test', data:{ message:'GentiX ERP test ping', time: new Date().toISOString() } })
+      });
+      if (st) { st.textContent = '✓ Connection OK'; st.style.color = '#27ae60'; }
+      toast('Test ping sent! Google Sheet check করুন।','success');
+    } catch(e) {
+      if (st) { st.textContent = '✗ Failed'; st.style.color = '#e74c3c'; }
+      toast('Test failed: '+e.message,'error');
+    }
+  }
+
   async function addCategory() {
     const v = document.getElementById('newCategory')?.value.trim();
     if(!v){toast('Enter category name','error');return;}
@@ -415,5 +467,5 @@ const settingsModule = (() => {
   function setVal(id,v){const el=document.getElementById(id);if(el)el.value=v;}
   function getVal(id){return document.getElementById(id)?.value||'';}
 
-  return { load, saveProfile, addCategory, addSubcategory, removeCat, removeSubcat, setGoal, updateAccount, saveResetPassword, resetSystem, exportData, clearAllData, logout, refresh };
+  return { load, saveProfile, saveSheetsUrl, testSheetsSync, addCategory, addSubcategory, removeCat, removeSubcat, setGoal, updateAccount, saveResetPassword, resetSystem, exportData, clearAllData, logout, refresh };
 })();

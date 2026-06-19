@@ -105,6 +105,8 @@ const purchasesModule = (() => {
       }
       batch.update(window.db.collection('suppliers').doc(suppId),{totalPurchase:firebase.firestore.FieldValue.increment(total),currentDue:firebase.firestore.FieldValue.increment(total)});
       await batch.commit();
+      // Sync to Google Sheets
+      window.SheetsSync?.purchase({ date:purDate, supplierId:suppId, product:prodName, qty, price, total });
       toast('Purchase saved successfully!','success');
       document.getElementById('purQty').value='';document.getElementById('purPrice').value='';
       document.getElementById('totalPayableDisplay').textContent='0';document.getElementById('supBalanceDisplay').innerHTML='';

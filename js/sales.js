@@ -160,6 +160,8 @@ const salesModule = (() => {
       batch.update(window.db.collection('products').doc(prodId),{currentStock:firebase.firestore.FieldValue.increment(-qty)});
       batch.update(window.db.collection('customers').doc(custId),{totalOrder:firebase.firestore.FieldValue.increment(qty),totalCod:firebase.firestore.FieldValue.increment(total)});
       await batch.commit();
+      // Sync to Google Sheets (background, non-blocking)
+      window.SheetsSync?.sale({ date:saleDate, saleId, customerId:custId, product:prodName, qty, price, total, cogs:qty*buyPrice, status:'Active' });
       toast('Sale Recorded Successfully!','success');
       document.getElementById('saleTotalShow').textContent='0.00';
       document.getElementById('custBalanceDisplay').innerHTML='';document.getElementById('stockHint').innerHTML='';

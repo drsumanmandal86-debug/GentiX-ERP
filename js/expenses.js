@@ -91,6 +91,8 @@ const expensesModule = (() => {
         batch.set(cbRef, { type:'Expense', refId:'', particulars:`Expense: ${cat}${detail?` (${detail})`:''}`, cashIn:0, cashOut:amount, amount, date, createdAt:firebase.firestore.FieldValue.serverTimestamp() });
       }
       await batch.commit();
+      // Sync to Google Sheets
+      window.SheetsSync?.expense({ date, category:cat, particulars:detail, amount, status:'Paid' });
       toast('Expense Saved!','success');
       document.getElementById('expCategory').value='';
       document.getElementById('expDetail').value='';

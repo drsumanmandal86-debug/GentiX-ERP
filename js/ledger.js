@@ -262,6 +262,8 @@ const ledgerModule = (() => {
         personName: name, note, cashIn: paid, cashOut: spent, runBalance,
         date: todayStr(), createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+      // Sync to Google Sheets
+      window.SheetsSync?.personalLedger({ personName:name, note, cashIn:paid, cashOut:spent, date:todayStr() });
       toast('Entry Saved!','success');
       document.getElementById('pName').value='';
       document.getElementById('pPaid').value='';

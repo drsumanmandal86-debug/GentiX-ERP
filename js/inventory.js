@@ -156,6 +156,8 @@ const inventoryModule = (() => {
     if (!data.name) { toast('Product name is required','error'); return; }
     try {
       await window.db.collection('products').add({ ...data, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      // Sync to Google Sheets
+      window.SheetsSync?.inventory(data);
       closeModal(); toast('Product added successfully!','success'); await fetchProducts();
     } catch(e) { toast('Error: '+e.message,'error'); }
   }

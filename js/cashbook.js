@@ -122,6 +122,8 @@ const cashbookModule = (() => {
         batch.update(window.db.collection('suppliers').doc(refId),{currentDue:firebase.firestore.FieldValue.increment(-cashOut)});
       }
       await batch.commit();
+      // Sync to Google Sheets
+      window.SheetsSync?.cashBook({ date:todayStr(), refId, particulars:note, cashIn, cashOut, type });
       toast('Transaction Recorded!','success');
       document.getElementById('particulars').value=''; document.getElementById('cbAmount').value='';
       btn.disabled=false; btn.innerHTML='<i class="bi bi-save"></i> Save Transaction';

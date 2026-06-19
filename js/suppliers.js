@@ -110,6 +110,8 @@ const suppliersModule = (() => {
         ...data, totalPurchase: 0, currentDue: 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+      // Sync to Google Sheets
+      window.SheetsSync?.supplier(data);
       closeModal(); toast('Supplier added successfully!','success'); await fetchSuppliers();
     } catch(e) { toast('Error: '+e.message,'error'); }
   }

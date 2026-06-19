@@ -234,6 +234,8 @@ const fbModule = (() => {
         }
       }
       await batch.commit();
+      // Sync to Google Sheets
+      window.SheetsSync?.fbLog({ date:todayStr(), adName:ad.name, lifetimeSpent:lifetime, dailyUSD, rate, totalBDT });
       toast(`সফলভাবে Meta/Facebook Ads-এর বকেয়া হিসেবে ৳${Math.round(totalBDT).toLocaleString()} সেভ হয়েছে।`,'success');
       document.getElementById('lifetimeSpent').value = '';
       btn.disabled=false; btn.innerHTML='<i class="bi bi-cloud-upload"></i> SAVE & SYNC';

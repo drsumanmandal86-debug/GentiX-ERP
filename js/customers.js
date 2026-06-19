@@ -110,6 +110,8 @@ const customersModule = (() => {
         ...data, totalOrder: 0, totalCod: 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+      // Sync to Google Sheets
+      window.SheetsSync?.customer(data);
       closeModal(); toast('Customer Saved Successfully!','success'); await fetchCustomers();
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
