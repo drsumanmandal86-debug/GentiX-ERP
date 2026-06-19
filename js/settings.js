@@ -9,9 +9,8 @@ const settingsModule = (() => {
   }
 
   async function loadAll() {
-    const [settSnap, expSnap] = await Promise.all([
-      window.db.collection('settings').doc('config').get(),
-      window.db.collection('expenses').get()
+    const [settSnap] = await Promise.all([
+      window.db.collection('settings').doc('config').get()
     ]);
     const s = settSnap.exists ? settSnap.data() : {};
     setVal('shopName', s.businessName||'GentiX ERP');
@@ -25,35 +24,21 @@ const settingsModule = (() => {
     renderCategoryList();
     renderSubcategoryList();
 
-    // Financial stats (Loan Recovery + Savings)
-    const expDocs = expSnap.docs.map(d=>d.data());
-    let totalPaid=0, totalSavings=0;
-    expDocs.forEach(e=>{
-      if(e.category==='Loan Adjustment') totalPaid+=e.amount||0;
-      if(e.category==='Savings') totalSavings+=e.amount||0;
-    });
-    const remaining = Math.max(0, BASE_INVEST - totalPaid);
-    const pct = BASE_INVEST > 0 ? Math.min(100,(totalPaid/BASE_INVEST)*100) : 0;
-    setEl('targetLoanDisplay', BASE_INVEST.toLocaleString());
-    setEl('loanPaidDisplay', '৳'+totalPaid.toLocaleString());
-    setEl('loanRemainingDisplay', '৳'+remaining.toLocaleString());
-    setEl('loanPctBadge', Math.round(pct)+'%');
-    const bar = document.getElementById('loanProgressBar');
-    if(bar) bar.style.width=pct+'%';
-    setEl('totalSavedDisplay', '৳'+totalSavings.toLocaleString());
-    updateSavingsGoalUI(totalSavings);
-
-    // Load goal from localStorage
-    const savedGoal = localStorage.getItem('gx_savings_goal')||'';
-    const savedDate = localStorage.getItem('gx_target_date')||'';
-    setVal('savingsGoalInput', savedGoal); setVal('targetDateInput', savedDate);
-    updateExpiryUI(savedDate);
+    // (Loan Recovery, Savings, Goal Planner removed from Settings)
   }
 
   function renderLayout() {
     document.getElementById('section-settings').innerHTML = `
-    <!-- CSV Import Tool -->
-    <div id="csv-import-container" style="margin-bottom:14px"></div>
+
+    <!-- CSV Import Drawer (collapsed by default) -->
+    <div style="margin-bottom:14px">
+      <button onclick="settingsModule.toggleImport()" id="importDrawerBtn"
+        style="width:100%;background:#eff6ff;border:2px dashed #3949ab;border-radius:10px;padding:12px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;color:#3949ab">
+        <span><i class="bi bi-file-earmark-arrow-up me-2"></i>Google Sheets → Firebase CSV Import</span>
+        <i class="bi bi-chevron-down" id="importDrawerIcon"></i>
+      </button>
+      <div id="csv-import-container" style="display:none;margin-top:6px"></div>
+    </div>
 
     <!-- Business Identity -->
     <div class="table-card mb-3" style="padding:18px">
@@ -91,64 +76,7 @@ const settingsModule = (() => {
       </div>
     </div>
 
-    <!-- Row 2: Loan Recovery | Savings Card | Goal Planner -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
-      <!-- Loan Recovery -->
-      <div class="table-card" style="padding:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700">ACTIVE</span>
-          <button class="btn btn-outline btn-sm" onclick="settingsModule.refresh()" style="font-size:10px;padding:3px 8px"><i class="bi bi-arrow-repeat"></i> SYNC</button>
-        </div>
-        <div style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Loan Recovery</div>
-        <h3 id="loanPctBadge" style="font-size:24px;font-weight:800;margin:0">0%</h3>
-        <small style="color:#9ca3af;font-size:11px">Total: <strong>৳<span id="targetLoanDisplay">0</span></strong></small>
-        <div style="height:6px;background:#f1f5f9;border-radius:50px;margin:10px 0;overflow:hidden">
-          <div id="loanProgressBar" style="height:100%;background:#3949ab;border-radius:50px;transition:width 1s;width:0%"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;border-top:1px solid #f3f4f6;padding-top:10px;margin-top:4px">
-          <div style="text-align:center"><small style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;display:block">Paid</small><span style="font-weight:700;color:#27ae60;font-size:13px" id="loanPaidDisplay">৳0</span></div>
-          <div style="text-align:center"><small style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;display:block">Remaining</small><span style="font-weight:700;color:#e74c3c;font-size:13px" id="loanRemainingDisplay">৳0</span></div>
-        </div>
-      </div>
-
-      <!-- Savings Card (Credit Card Design) -->
-      <div style="background:linear-gradient(135deg,#0f172a,#334155);border-radius:14px;padding:20px;color:#fff;position:relative;overflow:hidden;aspect-ratio:1.58/1;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 15px 30px rgba(15,23,42,.3)">
-        <div style="position:absolute;top:-20%;right:-10%;width:120px;height:120px;background:rgba(255,255,255,.05);border-radius:50%"></div>
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="width:40px;height:30px;background:linear-gradient(135deg,#fbbf24,#d97706);border-radius:5px"></div>
-          <i class="bi bi-wifi" style="font-size:18px;opacity:.5;transform:rotate(90deg)"></i>
-        </div>
-        <div>
-          <div style="font-size:16px;letter-spacing:2px;font-weight:600;margin-bottom:8px;text-shadow:0 2px 4px rgba(0,0,0,.3)">4582 9612 **** 7034</div>
-          <small style="font-size:10px;opacity:.5;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:2px">Savings Balance</small>
-          <h3 style="margin:0;font-weight:800" id="totalSavedDisplay">৳0</h3>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:flex-end">
-          <div><div style="font-size:8px;text-transform:uppercase;opacity:.6;letter-spacing:1px;margin-bottom:2px">Card Holder</div><div style="font-size:11px;font-weight:700;text-transform:uppercase">SUMAN MANDAL</div></div>
-          <div style="text-align:right"><div style="font-size:8px;text-transform:uppercase;opacity:.6;letter-spacing:1px;margin-bottom:2px">Expires</div><div style="font-size:11px;font-weight:700" id="cardExpiryDisplay">00/00</div></div>
-        </div>
-      </div>
-
-      <!-- Goal Planner -->
-      <div class="table-card" style="padding:16px">
-        <div style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Goal Planner</div>
-        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px;margin-bottom:8px">
-          <input type="number" id="savingsGoalInput" class="form-control" placeholder="Amount ৳">
-          <input type="month" id="targetDateInput" class="form-control">
-        </div>
-        <button class="btn btn-primary" onclick="settingsModule.setGoal()" style="width:100%;font-size:12px;padding:7px;margin-bottom:12px;justify-content:center">SET GOAL</button>
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-          <small style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">Goal Progress</small>
-          <small id="savingsGoalPct" style="font-weight:700;color:#27ae60;font-size:11px">0%</small>
-        </div>
-        <div style="height:6px;background:#f1f5f9;border-radius:50px;margin-bottom:6px;overflow:hidden">
-          <div id="savingsGoalBar" style="height:100%;background:#27ae60;border-radius:50px;width:0%;transition:width 1s"></div>
-        </div>
-        <small id="remainingGoalText" style="color:#9ca3af;font-size:10px;display:block;text-align:center">Target Goal: ৳0</small>
-      </div>
-    </div>
-
-    <!-- Row 3: Categories + Sub-categories -->
+    <!-- Row 2: Categories + Sub-categories -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
       <div class="table-card" style="padding:16px">
         <h6 style="font-weight:700;margin-bottom:12px;font-size:14px">Categories</h6>
@@ -247,8 +175,8 @@ const settingsModule = (() => {
     const user = firebase.auth().currentUser;
     if(user) setVal('setEmail', user.email||'');
 
-    // Render CSV import tool
-    if (window.ImportTool) window.ImportTool.renderImportUI('csv-import-container');
+    // CSV Import inside drawer (renders when first opened)
+
   }
 
   function renderCategoryList() {
@@ -323,35 +251,16 @@ const settingsModule = (() => {
     renderCategoryList(); renderSubcategoryList();
   }
 
-  function setGoal() {
-    const goal = document.getElementById('savingsGoalInput')?.value;
-    const date = document.getElementById('targetDateInput')?.value;
-    localStorage.setItem('gx_savings_goal', goal||'');
-    localStorage.setItem('gx_target_date', date||'');
-    updateExpiryUI(date);
-    const totalSaved = parseInt(document.getElementById('totalSavedDisplay')?.textContent?.replace(/[৳,]/g,'')) || 0;
-    updateSavingsGoalUI(totalSaved);
-    toast('Goal & Target Date Updated!','success');
-  }
-
-  function updateExpiryUI(dateStr) {
-    const el = document.getElementById('cardExpiryDisplay');
-    if(!el) return;
-    if(!dateStr){ el.textContent='00/00'; return; }
-    const [year, month] = dateStr.split('-');
-    el.textContent = month+'/'+year.substring(2);
-  }
-
-  function updateSavingsGoalUI(currentSavings) {
-    const goal = parseFloat(localStorage.getItem('gx_savings_goal'))||0;
-    const el = document.getElementById('remainingGoalText');
-    if(el) el.textContent='Target Goal: ৳'+goal.toLocaleString();
-    if(goal>0){
-      const pct = Math.min(100,(currentSavings/goal)*100);
-      const bar = document.getElementById('savingsGoalBar');
-      const pctEl = document.getElementById('savingsGoalPct');
-      if(bar) bar.style.width=pct+'%';
-      if(pctEl) pctEl.textContent=Math.round(pct)+'%';
+  function toggleImport() {
+    const box = document.getElementById('csv-import-container');
+    const icon = document.getElementById('importDrawerIcon');
+    if (!box) return;
+    const isOpen = box.style.display !== 'none';
+    box.style.display = isOpen ? 'none' : 'block';
+    if (icon) icon.className = isOpen ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+    // Render import UI only once on first open
+    if (!isOpen && box.innerHTML.trim() === '' && window.ImportTool) {
+      window.ImportTool.renderImportUI('csv-import-container');
     }
   }
 
@@ -473,5 +382,5 @@ const settingsModule = (() => {
   function setVal(id,v){const el=document.getElementById(id);if(el)el.value=v;}
   function getVal(id){return document.getElementById(id)?.value||'';}
 
-  return { load, saveProfile, saveSheetsUrl, testSheetsSync, addCategory, addSubcategory, removeCat, removeSubcat, setGoal, updateAccount, saveResetPassword, resetSystem, exportData, clearAllData, logout, refresh };
+  return { load, saveProfile, saveSheetsUrl, testSheetsSync, addCategory, addSubcategory, removeCat, removeSubcat, toggleImport, updateAccount, saveResetPassword, resetSystem, exportData, clearAllData, logout, refresh };
 })();
