@@ -1,5 +1,22 @@
 /* ===================== GLOBAL UTILITIES ===================== */
 
+// ── Bangladesh Timezone (Asia/Dhaka, UTC+6) helpers ──
+const BD_TZ = 'Asia/Dhaka';
+
+// YYYY-MM-DD in Bangladesh local time
+window.todayStr = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: BD_TZ });
+  // en-CA locale gives YYYY-MM-DD format natively
+
+// Get current Bangladesh local Date object
+window.bdNow = () => {
+  const now = new Date();
+  // Shift by BD offset so getFullYear/Month/Date return BD values
+  const bdOffset = 6 * 60; // UTC+6 in minutes
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc + bdOffset * 60000);
+};
+
 window.fmt = amount => {
   if (isNaN(amount) || amount === null) return '৳0';
   return '৳' + Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 });
@@ -7,11 +24,22 @@ window.fmt = amount => {
 
 window.fmtDate = (date) => {
   if (!date) return '—';
-  const d = date.toDate ? date.toDate() : new Date(date);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Handle Firestore Timestamp, Date object, or YYYY-MM-DD string
+  let d;
+  if (date && date.toDate) {
+    d = date.toDate();
+  } else if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    // Parse YYYY-MM-DD as Bangladesh date (avoid UTC shift)
+    const [y, m, dy] = date.split('-').map(Number);
+    d = new Date(y, m - 1, dy); // local date constructor (no timezone shift)
+  } else {
+    d = new Date(date);
+  }
+  return d.toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    timeZone: BD_TZ
+  });
 };
-
-window.todayStr = () => new Date().toISOString().split('T')[0];
 
 window.genId = (prefix = 'ID') => {
   const ts = Date.now().toString(36).toUpperCase();
@@ -46,33 +74,27 @@ window.closeModal = () => {
   document.getElementById('modalFooter').innerHTML = '';
 };
 
-/* -------- Date Range -------- */
+/* -------- Date Range (Bangladesh UTC+6) -------- */
 window.getDateRange = (period) => {
-  const now = new Date();
-  const startOf = d => { d.setHours(0,0,0,0); return d; };
+  // Use Bangladesh local date as reference — avoids midnight UTC drift
+  const bd = window.bdNow();
+  const y = bd.getFullYear(), m = bd.getMonth(), dy = bd.getDate();
+
+  const makeDate = (yr, mo, d) => new Date(yr, mo, d, 0, 0, 0, 0);
+  const endOfDay = (yr, mo, d) => new Date(yr, mo, d, 23, 59, 59, 999);
+
   switch (period) {
     case 'today':
-      return { from: startOf(new Date(now)), to: new Date() };
-    case 'yesterday': {
-      const y = new Date(now); y.setDate(y.getDate() - 1);
-      const ye = new Date(y); ye.setHours(23,59,59,999);
-      return { from: startOf(y), to: ye };
-    }
-    case 'last7': {
-      const s = new Date(now); s.setDate(s.getDate() - 7);
-      return { from: startOf(s), to: new Date() };
-    }
-    case 'thisMonth': {
-      const s = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { from: startOf(s), to: new Date() };
-    }
-    case 'lastMonth': {
-      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const e = new Date(now.getFullYear(), now.getMonth(), 0);
-      e.setHours(23,59,59,999);
-      return { from: s, to: e };
-    }
-    default: return null; // lifetime — no filter
+      return { from: makeDate(y,m,dy), to: endOfDay(y,m,dy) };
+    case 'yesterday':
+      return { from: makeDate(y,m,dy-1), to: endOfDay(y,m,dy-1) };
+    case 'last7':
+      return { from: makeDate(y,m,dy-7), to: endOfDay(y,m,dy) };
+    case 'thisMonth':
+      return { from: makeDate(y,m,1), to: endOfDay(y,m,dy) };
+    case 'lastMonth':
+      return { from: makeDate(y,m-1,1), to: endOfDay(y,m,0) };
+    default: return null; // lifetime
   }
 };
 
