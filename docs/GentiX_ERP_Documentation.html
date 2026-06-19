@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GentiX ERP — সম্পূর্ণ ব্যবহার নির্দেশিকা</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;color:#1a1a1a;background:#f8fafc;line-height:1.7}
+  .page{max-width:960px;margin:0 auto;padding:32px 40px}
+  /* Header */
+  .doc-header{background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#fff;padding:36px 40px;border-radius:16px;margin-bottom:28px}
+  .doc-header h1{font-size:26px;font-weight:800;margin-bottom:6px}
+  .doc-header p{color:#94a3b8;font-size:13px}
+  .doc-header .badges{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge-blue{background:#1e40af;color:#fff} .badge-green{background:#166534;color:#fff}
+  .badge-orange{background:#92400e;color:#fff}
+  /* TOC */
+  .toc{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:24px}
+  .toc h3{font-size:14px;font-weight:800;color:#1e3a5f;margin-bottom:12px;border-bottom:2px solid #e2e8f0;padding-bottom:8px}
+  .toc ol{padding-left:18px} .toc li{margin:4px 0} .toc a{color:#3b82f6;text-decoration:none;font-size:12.5px}
+  .toc a:hover{text-decoration:underline}
+  /* Sections */
+  .section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:22px 26px;margin-bottom:20px}
+  .section-title{font-size:17px;font-weight:800;color:#1e3a5f;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:8px}
+  h3{font-size:14px;font-weight:700;color:#374151;margin:16px 0 8px;padding:6px 10px;background:#f8fafc;border-left:3px solid #3b82f6;border-radius:0 4px 4px 0}
+  h4{font-size:13px;font-weight:700;color:#475569;margin:12px 0 6px}
+  p{margin-bottom:8px;color:#374151}
+  ul,ol{padding-left:18px;margin-bottom:10px} li{margin:4px 0;color:#374151}
+  /* Alerts */
+  .alert{padding:12px 16px;border-radius:8px;margin:10px 0;font-size:12.5px}
+  .alert-red{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .alert-yellow{background:#fefce8;border:1px solid #fde68a;color:#92400e}
+  .alert-green{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+  .alert-blue{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  /* Password box */
+  .pass-box{background:#0f172a;color:#22c55e;font-family:monospace;font-size:14px;font-weight:700;padding:10px 16px;border-radius:8px;display:inline-block;margin:4px 0;letter-spacing:1px}
+  /* Table */
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th{background:#f8fafc;padding:8px 12px;text-align:left;font-weight:700;color:#374151;border:1px solid #e2e8f0}
+  td{padding:8px 12px;border:1px solid #e2e8f0;vertical-align:top}
+  tr:nth-child(even) td{background:#f8fafc}
+  /* Step */
+  .steps{counter-reset:step}
+  .step{counter-increment:step;display:flex;gap:12px;margin:8px 0;align-items:flex-start}
+  .step::before{content:counter(step);background:#3b82f6;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px}
+  /* Module card */
+  .module-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .module-card{border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;font-size:12px}
+  .module-card .icon{font-size:18px;margin-bottom:4px}
+  .module-card strong{display:block;color:#1e3a5f;font-size:13px;margin-bottom:3px}
+  /* Print */
+  @media print{
+    .page{padding:10px 20px}
+    .no-print{display:none!important}
+    .section{break-inside:avoid;page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- Print Button -->
+<div class="no-print" style="text-align:right;margin-bottom:16px">
+  <button onclick="window.print()" style="background:#1e3a5f;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🖨️ PDF হিসেবে Save করুন</button>
+</div>
+
+<!-- Header -->
+<div class="doc-header">
+  <h1>🛍️ GentiX Fashion ERP</h1>
+  <p>সম্পূর্ণ ব্যবহার নির্দেশিকা — Passwords, Operations, Modules</p>
+  <div class="badges">
+    <span class="badge badge-blue">Version 2.0</span>
+    <span class="badge badge-green">Firebase Hosted</span>
+    <span class="badge badge-orange">Dr. Suman — Polo Shirt Business</span>
+  </div>
+  <div style="margin-top:14px;font-size:12px;color:#64748b">
+    <div>🌐 <strong style="color:#94a3b8">Live URL:</strong> https://mini-erp-gentix.web.app</div>
+    <div>📁 <strong style="color:#94a3b8">GitHub:</strong> https://github.com/drsumanmandal86-debug/GentiX-ERP</div>
+    <div>📅 <strong style="color:#94a3b8">Prepared:</strong> June 2026</div>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>📋 বিষয়সূচি</h3>
+  <ol>
+    <li><a href="#s1">System Overview — URL, Login, Access</a></li>
+    <li><a href="#s2">⚠️ সকল Passwords (অত্যন্ত গুরুত্বপূর্ণ)</a></li>
+    <li><a href="#s3">Dashboard — Business KPI</a></li>
+    <li><a href="#s4">Inventory — পণ্য ব্যবস্থাপনা</a></li>
+    <li><a href="#s5">Purchases — ক্রয় এন্ট্রি</a></li>
+    <li><a href="#s6">Sales — বিক্রয় ও Return</a></li>
+    <li><a href="#s7">Expenses — খরচ ট্র্যাকিং</a></li>
+    <li><a href="#s8">Cash Book — নগদ লেনদেন</a></li>
+    <li><a href="#s9">FB Ad Tracker — Facebook বিজ্ঞাপন</a></li>
+    <li><a href="#s10">Personal Ledger — ব্যক্তিগত হিসাব</a></li>
+    <li><a href="#s11">Suppliers & Customers</a></li>
+    <li><a href="#s12">Reports — বিশ্লেষণ</a></li>
+    <li><a href="#s13">Business Overview — Chart & Comparison</a></li>
+    <li><a href="#s14">Settings — সেটিংস ও Reset</a></li>
+    <li><a href="#s15">Data Import / Export</a></li>
+    <li><a href="#s16">Edit ও Delete নিয়ম</a></li>
+    <li><a href="#s17">ত্রুটি ও সমাধান</a></li>
+    <li><a href="#s18">গুরুত্বপূর্ণ তথ্য ও সতর্কতা</a></li>
+  </ol>
+</div>
+
+<!-- S1: System Overview -->
+<div class="section" id="s1">
+  <div class="section-title">🌐 1. System Overview</div>
+  <table>
+    <tr><th>বিষয়</th><th>তথ্য</th></tr>
+    <tr><td><strong>Live URL</strong></td><td><strong>https://mini-erp-gentix.web.app</strong> (যেকোনো device থেকে)</td></tr>
+    <tr><td>Login Email</td><td>drsumanmandal86@gmail.com</td></tr>
+    <tr><td>Database</td><td>Firebase Firestore (Google Cloud)</td></tr>
+    <tr><td>Hosting</td><td>Firebase Hosting (CDN — সবসময় চালু)</td></tr>
+    <tr><td>Code Backup</td><td>GitHub → github.com/drsumanmandal86-debug/GentiX-ERP</td></tr>
+    <tr><td>PC ছাড়া কাজ করবে?</td><td>✅ হ্যাঁ — Firebase-এ hosted, PC folder দরকার নেই</td></tr>
+    <tr><td>Internet দরকার?</td><td>✅ হ্যাঁ — সব data cloud-এ</td></tr>
+    <tr><td>সর্বোচ্চ ব্যবহারকারী</td><td>১ জন (single user setup)</td></tr>
+  </table>
+
+  <h3>প্রথমবার Login করার নিয়ম</h3>
+  <div class="steps">
+    <div class="step">Browser-এ যান: <strong>https://mini-erp-gentix.web.app</strong></div>
+    <div class="step">Email: <strong>drsumanmandal86@gmail.com</strong> দিন</div>
+    <div class="step">Gmail password দিন (Firebase Auth)</div>
+    <div class="step">Login হলে Dashboard দেখাবে</div>
+  </div>
+
+  <div class="alert alert-blue">
+    💡 <strong>Tip:</strong> Chrome browser-এ bookmark করে রাখুন। Mobile-এ Home Screen-এ Add করতে পারেন।
+  </div>
+</div>
+
+<!-- S2: Passwords -->
+<div class="section" id="s2">
+  <div class="section-title">🔐 2. সকল Passwords — অত্যন্ত গুরুত্বপূর্ণ</div>
+
+  <div class="alert alert-red">
+    ⚠️ <strong>সতর্কতা:</strong> এই passwords অন্য কাউকে দেবেন না। Password ভুললে Settings থেকে পরিবর্তন করা যাবে।
+  </div>
+
+  <table>
+    <tr>
+      <th>Password ব্যবহার</th>
+      <th>Password</th>
+      <th>কোথায় ব্যবহার হয়</th>
+      <th>পরিবর্তন করা যায়?</th>
+    </tr>
+    <tr>
+      <td><strong>🔑 Login Password</strong></td>
+      <td><span class="pass-box">Gmail Password</span></td>
+      <td>app.html login page</td>
+      <td>Firebase Console থেকে</td>
+    </tr>
+    <tr>
+      <td><strong>🔄 System Reset Password</strong></td>
+      <td><span class="pass-box">GentiX@Reset</span></td>
+      <td>Header-এর Reset বাটন, Settings-এর Reset section</td>
+      <td>✅ Settings → Reset Password field</td>
+    </tr>
+    <tr>
+      <td><strong>❌ Purchase Cancel Password</strong></td>
+      <td><span class="pass-box">1234</span></td>
+      <td>Purchases → Delete/Cancel বাটন</td>
+      <td>❌ (code-এ hardcoded)</td>
+    </tr>
+  </table>
+
+  <h3>Reset Password পরিবর্তন করার নিয়ম</h3>
+  <div class="steps">
+    <div class="step">Settings-এ যান (Sidebar)</div>
+    <div class="step">"Reset Password" field খুঁজুন</div>
+    <div class="step">নতুন password টাইপ করুন</div>
+    <div class="step">Save করুন</div>
+  </div>
+</div>
+
+<!-- S3: Dashboard -->
+<div class="section" id="s3">
+  <div class="section-title">📊 3. Dashboard — Business KPI</div>
+  <p>সব গুরুত্বপূর্ণ business metrics এক জায়গায় দেখায়।</p>
+
+  <h3>Time Filter ব্যবহার</h3>
+  <table>
+    <tr><th>Filter</th><th>কী দেখায়</th></tr>
+    <tr><td>Lifetime</td><td>সব সময়ের সম্পূর্ণ data</td></tr>
+    <tr><td>Today</td><td>আজকের transactions</td></tr>
+    <tr><td>Yesterday</td><td>গতকালের data</td></tr>
+    <tr><td>Last 7 Days</td><td>গত ৭ দিনের</td></tr>
+    <tr><td>This Month</td><td>এই মাসের শুরু থেকে আজ পর্যন্ত</td></tr>
+    <tr><td>Last Month</td><td>পুরো গত মাস</td></tr>
+  </table>
+
+  <h3>KPI Cards ব্যাখ্যা</h3>
+  <table>
+    <tr><th>Card</th><th>কী মানে</th><th>সবসময় Lifetime?</th></tr>
+    <tr><td>Total Sales</td><td>Active + Adjustment sales (Return বাদে)</td><td>Filter অনুযায়ী</td></tr>
+    <tr><td>Cash In Hand</td><td>Opening Cash + Cash In − Cash Out</td><td>✅ সবসময় Lifetime</td></tr>
+    <tr><td>Stock Value</td><td>Current Stock × Buy Price</td><td>✅ সবসময় Lifetime</td></tr>
+    <tr><td>Total Expenses</td><td>Paid expenses + FB Ads</td><td>Filter অনুযায়ী</td></tr>
+    <tr><td>Customer Due</td><td>সব customers-এর বকেয়া COD</td><td>✅ সবসময় Lifetime</td></tr>
+    <tr><td>Supplier Due</td><td>সব suppliers-এর বকেয়া payment</td><td>✅ সবসময় Lifetime</td></tr>
+    <tr><td>Net Profit</td><td>Sales − COGS − Expenses</td><td>Filter অনুযায়ী</td></tr>
+    <tr><td>COGS</td><td>Sold qty × Buy Price (dynamic)</td><td>Filter অনুযায়ী</td></tr>
+    <tr><td>30D Forecast</td><td>Period-এর profit rate × 30 days</td><td>Filter অনুযায়ী</td></tr>
+    <tr><td>Business ROI</td><td>(Capital − Investment) / Investment × 100</td><td>✅ Lifetime</td></tr>
+  </table>
+
+  <div class="alert alert-blue">
+    💡 <strong>Low Stock Alert:</strong> Dashboard-এর নিচে সব products-এর stock দেখায়। লাল = Out of Stock, কমলা = Very Low (&lt;10), হলুদ = Low (&lt;100), সবুজ = OK।
+  </div>
+</div>
+
+<!-- S4: Inventory -->
+<div class="section" id="s4">
+  <div class="section-title">📦 4. Inventory — পণ্য ব্যবস্থাপনা</div>
+
+  <h3>নতুন পণ্য যোগ করা</h3>
+  <div class="steps">
+    <div class="step">Inventory → "Add New Product" বাটন</div>
+    <div class="step">Product Name, Category, Sub-category দিন</div>
+    <div class="step">Buy Price (কোনো দাম), Sell Price, Current Stock দিন</div>
+    <div class="step">Save করুন</div>
+  </div>
+
+  <h3>Edit করা</h3>
+  <div class="steps">
+    <div class="step">Product row-এ ✏️ (পেন্সিল) বাটন click করুন</div>
+    <div class="step">Modal-এ যা পরিবর্তন দরকার করুন</div>
+    <div class="step">"Update Product" click করুন</div>
+  </div>
+
+  <h3>Delete করা</h3>
+  <div class="steps">
+    <div class="step">🗑️ (ট্র্যাশ) বাটন click করুন</div>
+    <div class="step">Confirm dialog-এ OK দিন</div>
+  </div>
+
+  <div class="alert alert-yellow">
+    ⚠️ <strong>সতর্কতা:</strong> Product delete করলে সেই product-এর sales history-তে product name থাকবে কিন্তু stock calculation থেকে বাদ যাবে।
+  </div>
+</div>
+
+<!-- S5: Purchases -->
+<div class="section" id="s5">
+  <div class="section-title">🛍️ 5. Purchases — ক্রয় এন্ট্রি</div>
+
+  <h3>নতুন Purchase এন্ট্রি</h3>
+  <div class="steps">
+    <div class="step">Purchase Date সেট করুন</div>
+    <div class="step">Supplier select করুন</div>
+    <div class="step">Product select করুন</div>
+    <div class="step">Quantity ও Unit Price দিন</div>
+    <div class="step">"Confirm Purchase" click করুন</div>
+  </div>
+
+  <div class="alert alert-green">
+    ✅ Purchase save হলে: Stock বাড়বে, Supplier Due বাড়বে, Weighted Average Buy Price update হবে।
+  </div>
+
+  <h3>Purchase History-তে Stock Movement Column</h3>
+  <p>প্রতিটি purchase row-এ দেখাবে: <strong>আগের stock → +কত যোগ হলো → নতুন stock</strong></p>
+  <p>উদাহরণ: <code>150 → +500 → 650</code></p>
+
+  <h3>Purchase Edit করা</h3>
+  <div class="steps">
+    <div class="step">✏️ বাটন click করুন</div>
+    <div class="step">Date, Qty, Price পরিবর্তন করুন</div>
+    <div class="step">"Update Purchase" click করুন — Supplier Due auto-adjust হবে</div>
+  </div>
+
+  <h3>Purchase Cancel / Delete করা</h3>
+  <div class="alert alert-red">
+    🔒 Password দরকার: <span class="pass-box">1234</span>
+  </div>
+  <div class="steps">
+    <div class="step">🗑️ বাটন click করুন</div>
+    <div class="step">Password: <strong>1234</strong> দিন</div>
+    <div class="step">Confirm করুন — Stock কমবে, Supplier Due কমবে</div>
+  </div>
+</div>
+
+<!-- S6: Sales -->
+<div class="section" id="s6">
+  <div class="section-title">🛒 6. Sales — বিক্রয় ও Return</div>
+
+  <h3>নতুন Sale Entry</h3>
+  <div class="steps">
+    <div class="step">Sale Date সেট করুন</div>
+    <div class="step">Customer select করুন (থাকলে পুরোনো COD দেখাবে)</div>
+    <div class="step">Product select করুন (Available stock দেখাবে)</div>
+    <div class="step">Quantity ও Unit Price দিন</div>
+    <div class="step">"Complete Sale" click করুন</div>
+  </div>
+
+  <div class="alert alert-green">
+    ✅ Sale save হলে: Stock কমবে, Customer totalCod বাড়বে, Customer totalOrder বাড়বে।
+  </div>
+
+  <h3>Return Entry (Per-row Return)</h3>
+  <div class="steps">
+    <div class="step">Sales list-এ Active entry-র ↩️ বাটন click করুন</div>
+    <div class="step">Modal-এ Return Date ও Return Qty দিন</div>
+    <div class="step">"Confirm Return" click করুন</div>
+  </div>
+  <p>এটি একটি নতুন <strong>Adjustment entry</strong> তৈরি করে (negative qty/total) — History-তে দেখা যাবে।</p>
+
+  <h3>Direct Return Adjustment (Bulk Return)</h3>
+  <p>Sale ID ছাড়াই courier-এর কাছ থেকে return নিতে:</p>
+  <div class="steps">
+    <div class="step">Sales page-এর নিচে "Direct Return Adjustment" section</div>
+    <div class="step">Courier/Customer, Product, Return Qty, Unit Price দিন</div>
+    <div class="step">"Confirm Bulk Return" click করুন</div>
+  </div>
+
+  <h3>Transaction History-তে Sales Status</h3>
+  <table>
+    <tr><th>Status</th><th>মানে</th><th>Financial Effect</th></tr>
+    <tr><td><span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-size:11px">Active</span></td><td>স্বাভাবিক বিক্রয়</td><td>Total Sales-এ যোগ হয়</td></tr>
+    <tr><td><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px">Adjustment</span></td><td>Return entry (negative)</td><td>Total Sales কমায়, COGS কমায়</td></tr>
+    <tr><td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:11px">Returned</span></td><td>পুরো return হয়েছে (visual)</td><td>Total Sales-এ যোগ থাকে (Adjustment বাদ দেয়)</td></tr>
+  </table>
+
+  <h3>Sale Edit করা</h3>
+  <div class="steps">
+    <div class="step">Active status-এর row-এ ✏️ বাটন click করুন</div>
+    <div class="step">Date, Qty, Price পরিবর্তন করুন (Customer ও Product পরিবর্তন যাবে না)</div>
+    <div class="step">"Update Sale" click করুন — Customer COD auto-adjust হবে</div>
+  </div>
+
+  <h3>Sale Delete করা</h3>
+  <div class="steps">
+    <div class="step">🗑️ বাটন click করুন</div>
+    <div class="step">Confirm করুন — Stock ফিরবে, Customer COD কমবে</div>
+  </div>
+
+  <div class="alert alert-yellow">
+    ⚠️ Adjustment entry delete করা যাবে না (ইচ্ছাকৃতভাবে disabled)।
+  </div>
+</div>
+
+<!-- S7: Expenses -->
+<div class="section" id="s7">
+  <div class="section-title">💸 7. Expenses — খরচ ট্র্যাকিং</div>
+
+  <h3>নতুন Expense এন্ট্রি</h3>
+  <div class="steps">
+    <div class="step">Date, Category, Sub-category দিন</div>
+    <div class="step">Particulars (বিবরণ) ও Amount দিন</div>
+    <div class="step">Status: Paid / Unpaid select করুন</div>
+    <div class="step">Save করুন</div>
+  </div>
+
+  <h3>Expense Categories</h3>
+  <table>
+    <tr><th>Category</th><th>বিশেষ নিয়ম</th></tr>
+    <tr><td>Meta/Facebook Ads</td><td>Cash Book entry তৈরি হয় না (FB Tracker আলাদা handle করে)</td></tr>
+    <tr><td>Loan Adjustment</td><td>Loan Recovery tracker-এ count হয়</td></tr>
+    <tr><td>Savings</td><td>Settings-এ Savings balance দেখায়</td></tr>
+    <tr><td>অন্যান্য</td><td>Auto Cash Book "Cash Out" entry তৈরি হয়</td></tr>
+  </table>
+
+  <div class="alert alert-blue">
+    💡 Dashboard-এ শুধু <strong>Paid</strong> expenses এবং <strong>Meta/Facebook Ads</strong> expenses count হয়।
+  </div>
+
+  <h3>Edit / Delete</h3>
+  <p>✏️ বাটন → পরিবর্তন করুন → Save | 🗑️ বাটন → Confirm করুন</p>
+</div>
+
+<!-- S8: Cash Book -->
+<div class="section" id="s8">
+  <div class="section-title">📒 8. Cash Book — নগদ লেনদেন</div>
+
+  <h3>Transaction Types</h3>
+  <table>
+    <tr><th>Type</th><th>Cash In/Out</th><th>কী করে</th></tr>
+    <tr><td>Customer Collection</td><td>Cash In ✅</td><td>Customer-এর totalCod কমায়</td></tr>
+    <tr><td>Investment</td><td>Cash In ✅</td><td>Total Investment বাড়ায়</td></tr>
+    <tr><td>Supplier Payment</td><td>Cash Out ✅</td><td>Supplier-এর currentDue কমায়</td></tr>
+    <tr><td>Other Expense</td><td>Cash Out ✅</td><td>শুধু Cash কমায়</td></tr>
+  </table>
+
+  <h3>নতুন Entry যোগ করা</h3>
+  <div class="steps">
+    <div class="step">Date, Transaction Type select করুন</div>
+    <div class="step">Particulars ও Amount দিন</div>
+    <div class="step">Customer/Supplier select করুন (যদি প্রযোজ্য)</div>
+    <div class="step">Save করুন</div>
+  </div>
+
+  <div class="alert alert-green">
+    ✅ Cash In Hand = Opening Cash + সব Cash In − সব Cash Out (সবসময় Lifetime calculate হয়)
+  </div>
+</div>
+
+<!-- S9: FB Ad Tracker -->
+<div class="section" id="s9">
+  <div class="section-title">📘 9. FB Ad Tracker — Facebook বিজ্ঞাপন</div>
+
+  <h3>Daily Sync করার নিয়ম</h3>
+  <div class="steps">
+    <div class="step">FB Ads Manager-এ গিয়ে আজকের Lifetime Spent দেখুন (USD)</div>
+    <div class="step">FB Ad Tracker-এ সেই Ad-এর "Sync" বাটন click করুন</div>
+    <div class="step">Lifetime USD amount দিন</div>
+    <div class="step">USD Rate দিন (default 129)</div>
+    <div class="step">Confirm করুন — Daily cost calculate হবে</div>
+  </div>
+
+  <div class="alert alert-green">
+    ✅ Sync হলে: Daily BDT expense তৈরি হবে, Meta/Facebook Ads supplier-এর due বাড়বে।
+  </div>
+
+  <h3>নতুন Ad যোগ করা</h3>
+  <div class="steps">
+    <div class="step">"Add New Ad" বাটন click করুন</div>
+    <div class="step">Ad Name দিন (ইংরেজিতে, / ব্যবহার করবেন না)</div>
+    <div class="step">Status: Active/Paused/Ended select করুন</div>
+    <div class="step">Save করুন</div>
+  </div>
+
+  <div class="alert alert-yellow">
+    ⚠️ Ad name-এ <strong>/</strong> (slash) ব্যবহার করবেন না — Firestore-এ path error হয়।
+  </div>
+</div>
+
+<!-- S10: Personal Ledger -->
+<div class="section" id="s10">
+  <div class="section-title">📔 10. Personal Ledger — ব্যক্তিগত হিসাব</div>
+
+  <p>Fixed persons: <strong>Chandan Mandal, Nitai Biswas, Prollad Bose, Dola Mandal</strong></p>
+  <p>Custom names Settings থেকে যোগ করা যাবে।</p>
+
+  <h3>নতুন Entry যোগ করা</h3>
+  <div class="steps">
+    <div class="step">Person select করুন</div>
+    <div class="step">Date ও Note দিন</div>
+    <div class="step">Cash Paid (আপনি দিলেন) বা Cash Received (আপনি পেলেন) দিন</div>
+    <div class="step">Save করুন — Running Balance auto-calculate হবে</div>
+  </div>
+
+  <h3>Custom Names যোগ / বাদ দেওয়া</h3>
+  <div class="steps">
+    <div class="step">Personal Ledger-এ "Manage Names" বাটন click করুন</div>
+    <div class="step">নতুন নাম টাইপ করে Add করুন বা × দিয়ে বাদ দিন</div>
+  </div>
+</div>
+
+<!-- S11: Suppliers & Customers -->
+<div class="section" id="s11">
+  <div class="section-title">🏭 11. Suppliers & Customers</div>
+
+  <h3>Supplier</h3>
+  <table>
+    <tr><th>Field</th><th>কী মানে</th><th>কীভাবে update হয়</th></tr>
+    <tr><td>currentDue</td><td>বকেয়া পাওনা</td><td>Purchase হলে বাড়ে, Cash Book payment হলে কমে</td></tr>
+    <tr><td>totalPurchase</td><td>মোট ক্রয়মূল্য</td><td>Purchase হলে বাড়ে</td></tr>
+  </table>
+  <p><strong>Supplier Ledger:</strong> Supplier row-এ 👁️ বাটন → সব purchases দেখাবে</p>
+
+  <h3>Customer</h3>
+  <table>
+    <tr><th>Field</th><th>কী মানে</th><th>কীভাবে update হয়</th></tr>
+    <tr><td>totalCod</td><td>বকেয়া COD পাওনা</td><td>Sale হলে বাড়ে, Collection/Return হলে কমে</td></tr>
+    <tr><td>totalOrder</td><td>মোট বিক্রয় qty</td><td>Sale হলে বাড়ে</td></tr>
+  </table>
+  <p><strong>Customer Ledger:</strong> Customer row-এ 👁️ বাটন → সব sales দেখাবে</p>
+
+  <h3>Edit / Delete (Suppliers & Customers)</h3>
+  <p>✏️ বাটন → তথ্য পরিবর্তন → Save | 🗑️ বাটন → Confirm করুন</p>
+  <div class="alert alert-yellow">
+    ⚠️ Customer/Supplier delete করলে তাদের সাথে linked transactions-এর reference হারিয়ে যাবে।
+  </div>
+</div>
+
+<!-- S12: Reports -->
+<div class="section" id="s12">
+  <div class="section-title">📈 12. Reports — বিশ্লেষণ</div>
+
+  <h3>Filter ব্যবহার</h3>
+  <div class="steps">
+    <div class="step">Quick preset বাটন click করুন (Today, Yesterday, 7 Days, This Month...)</div>
+    <div class="step">বা Start Date ও End Date manually দিন</div>
+    <div class="step">Analysis Mode select করুন: Daily / Weekly / Monthly</div>
+    <div class="step">"Execute Analysis" click করুন</div>
+  </div>
+
+  <h3>Report Sections</h3>
+  <table>
+    <tr><th>Section</th><th>কী দেখায়</th></tr>
+    <tr><td>Trend Analysis</td><td>Period ভিত্তিক Revenue, Profit, Margin</td></tr>
+    <tr><td>Expense by Category</td><td>কোন category-তে কত খরচ</td></tr>
+    <tr><td>Top Performers</td><td>সবচেয়ে বেশি revenue করা products</td></tr>
+    <tr><td>Business Health</td><td>COGS/OPEX/PROFIT allocation bar, Avg ticket</td></tr>
+    <tr><td>AI Predictor</td><td>30D forecast, Predicted profit, Safe buying limit</td></tr>
+    <tr><td>Goal Planner</td><td>Target profit % ও survival sales target</td></tr>
+    <tr><td>Inventory Matrix</td><td>সব products-এর stock, COGS, Gross Profit</td></tr>
+    <tr><td>Transaction Log</td><td>Paginated sales + expenses combined list</td></tr>
+  </table>
+</div>
+
+<!-- S13: Business Overview -->
+<div class="section" id="s13">
+  <div class="section-title">📊 13. Business Overview — Chart & Comparison</div>
+
+  <h3>Chart Filters</h3>
+  <table>
+    <tr><th>Filter</th><th>Chart Style</th><th>Table Style</th></tr>
+    <tr><td>This Month / Last Month</td><td>প্রতি দিনের bar (1-31)</td><td>Daily Breakdown</td></tr>
+    <tr><td>This Week / Last Week</td><td>প্রতি দিনের bar</td><td>Daily Breakdown</td></tr>
+    <tr><td>3M / 6M / 12M / 24M</td><td>মাস ভিত্তিক bar</td><td>Monthly Breakdown</td></tr>
+    <tr><td>This Year / Last Year</td><td>মাস ভিত্তিক bar</td><td>Monthly Breakdown</td></tr>
+  </table>
+
+  <h3>Period Comparison</h3>
+  <div class="steps">
+    <div class="step">Period A dropdown → কোনো period select করুন</div>
+    <div class="step">Period B dropdown → অন্য period select করুন</div>
+    <div class="step">"Run Comparison" click করুন</div>
+    <div class="step">Verdict দেখুন: কোন period-এ বেশি লাভ হয়েছে</div>
+  </div>
+
+  <h3>CA Audit Report Generate করা</h3>
+  <div class="steps">
+    <div class="step">"Generate CA Audit Report" বাটন click করুন</div>
+    <div class="step">নতুন window-এ report খুলবে</div>
+    <div class="step"><strong>PDF হিসেবে Save:</strong> "🖨️ Save as PDF" → Print dialog → "Save as PDF" (Chrome/Edge)</div>
+    <div class="step"><strong>Image হিসেবে Save:</strong> "📷 Download as Image" → PNG file download হবে</div>
+  </div>
+
+  <h3>Audit Report-এ কী আছে</h3>
+  <ul>
+    <li>Income Statement (Revenue → COGS → Gross Profit → Expenses → Net Profit)</li>
+    <li>Balance Sheet (Assets − Liabilities = Net Capital)</li>
+    <li>Capital Growth Analysis (Investment vs Current Capital, ROI)</li>
+    <li>Loan Recovery Progress (৳6,02,500 base-এর বিপরীতে কত recovered)</li>
+    <li>Business Self-Funding Capability (Cash Runway, Monthly avg profit)</li>
+    <li>Top 5 Product Performance</li>
+  </ul>
+</div>
+
+<!-- S14: Settings -->
+<div class="section" id="s14">
+  <div class="section-title">⚙️ 14. Settings — সেটিংস ও Reset</div>
+
+  <h3>Settings-এ যা আছে</h3>
+  <table>
+    <tr><th>Section</th><th>কী করে</th></tr>
+    <tr><td>CSV Import</td><td>Google Sheets থেকে CSV import করে Firebase-এ data load করা</td></tr>
+    <tr><td>Google Sheets Sync URL</td><td>নতুন entry Google Sheets-এ auto-sync করার জন্য GAS URL</td></tr>
+    <tr><td>Categories</td><td>Expense categories যোগ / বাদ দেওয়া</td></tr>
+    <tr><td>Sub-categories</td><td>Sub-categories manage করা</td></tr>
+    <tr><td>Ledger Names</td><td>Personal Ledger-এ custom names যোগ করা</td></tr>
+    <tr><td>Loan Recovery</td><td>Loan base amount ও current recovery দেখা</td></tr>
+    <tr><td>Savings Display</td><td>Savings balance দেখা</td></tr>
+    <tr><td>Goal Planner</td><td>Business target ও savings goal set করা</td></tr>
+    <tr><td>Reset Password</td><td>System reset-এর password পরিবর্তন</td></tr>
+    <tr><td>Data Reset</td><td>সব data মুছে ফেলা</td></tr>
+  </table>
+
+  <h3>Data Reset করার নিয়ম</h3>
+  <div class="alert alert-red">
+    🚨 <strong>অপরিবর্তনীয়!</strong> Reset করলে সব data চিরতরে মুছে যাবে। আগে Google Sheets backup নিশ্চিত করুন।
+  </div>
+  <div class="steps">
+    <div class="step">Header-এর <strong>Reset</strong> বাটন click করুন</div>
+    <div class="step">Password prompt-এ <span class="pass-box">GentiX@Reset</span> দিন</div>
+    <div class="step">Settings page-এ চলে যাবেন</div>
+    <div class="step">Reset section-এ Reset Type select করুন: "Data Only" বা "Complete Reset"</div>
+    <div class="step">আবার password দিন ও Confirm করুন</div>
+  </div>
+
+  <table>
+    <tr><th>Reset Type</th><th>কী মুছবে</th><th>কী থাকবে</th></tr>
+    <tr><td>Data Only</td><td>Sales, Purchases, Expenses, Cash Book, FB Logs</td><td>Products, Customers, Suppliers, Settings</td></tr>
+    <tr><td>Complete Reset</td><td>সব data</td><td>শুধু login account</td></tr>
+  </table>
+</div>
+
+<!-- S15: Data Import -->
+<div class="section" id="s15">
+  <div class="section-title">📥 15. Data Import / Export</div>
+
+  <h3>Google Sheets থেকে CSV Import</h3>
+  <div class="steps">
+    <div class="step">Google Sheets → যে Tab import করবেন → <strong>File → Download → CSV</strong></div>
+    <div class="step">Settings → CSV Import section-এ যান</div>
+    <div class="step">সঠিক collection select করুন (Sales, Purchases, Expenses...)</div>
+    <div class="step">CSV file choose করুন</div>
+    <div class="step">"Import" click করুন</div>
+  </div>
+
+  <div class="alert alert-blue">
+    💡 Re-import করলে duplicate হবে না — একই ID-র data overwrite হয়। তবে নতুন ID দিয়ে import করলে duplicate হতে পারে।
+  </div>
+
+  <h3>Supported Collections</h3>
+  <div class="module-grid">
+    <div class="module-card"><strong>Sales</strong>Date | CustID | Product | Qty | Price | Total | Status | SaleID</div>
+    <div class="module-card"><strong>Purchases</strong>Date | SupID | Product | Qty | Price | Total</div>
+    <div class="module-card"><strong>Expenses</strong>Date | ID | Category | Particulars | Amount | Status</div>
+    <div class="module-card"><strong>Cash Book</strong>Date | RefID | Particulars | CashIn | CashOut | Type</div>
+    <div class="module-card"><strong>Inventory</strong>Date | ID | Name | Category | Sub | Price | Qty</div>
+    <div class="module-card"><strong>Customers</strong>Date | ID | Name | Phone | Address | TotalOrder | TotalCOD</div>
+    <div class="module-card"><strong>Suppliers</strong>Date | ID | Name | Phone | Address | Due</div>
+    <div class="module-card"><strong>Personal Ledger</strong>Date | Name | Note | CashIn | CashOut | Balance</div>
+    <div class="module-card"><strong>FB Ad Settings</strong>Ad Name | Status | Lifetime Spent</div>
+    <div class="module-card"><strong>FB Ad Logs</strong>Date | Ad Name | Lifetime USD | Daily USD | Rate | BDT</div>
+  </div>
+
+  <h3>Google Sheets Sync (Firebase → Sheets)</h3>
+  <p>Settings-এ GAS Web App URL সেট করলে নতুন Sales, Purchases, Expenses save হলে Google Sheets-এ auto-sync হবে।</p>
+  <p><strong>GAS URL:</strong> https://script.google.com/macros/s/AKfycbxit77j2u3ESQjXjxFJSYqeD3KS4bK9FsdsaWqovHaSJjr_dktKC-ncNUVqJyRta2E/exec</p>
+
+  <div class="alert alert-yellow">
+    ⚠️ Sheets → Firebase sync নেই। Sheets-এ edit করলে Firebase-এ আসবে না। Firebase-কেই primary system হিসেবে ব্যবহার করুন।
+  </div>
+</div>
+
+<!-- S16: Edit & Delete Rules -->
+<div class="section" id="s16">
+  <div class="section-title">✏️ 16. Edit ও Delete — সব module-এর নিয়ম</div>
+
+  <table>
+    <tr><th>Module</th><th>Edit করা যায়?</th><th>Delete করা যায়?</th><th>Password দরকার?</th><th>কী reverse হয়?</th></tr>
+    <tr><td>Inventory</td><td>✅</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>Purchases</td><td>✅</td><td>✅</td><td>✅ (1234)</td><td>Stock, Supplier Due</td></tr>
+    <tr><td>Sales (Active)</td><td>✅</td><td>✅</td><td>❌</td><td>Stock, Customer COD</td></tr>
+    <tr><td>Sales (Adjustment)</td><td>❌</td><td>❌</td><td>—</td><td>—</td></tr>
+    <tr><td>Expenses</td><td>✅</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>Cash Book</td><td>✅</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>Customers</td><td>✅</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>Suppliers</td><td>✅</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>Personal Ledger</td><td>❌</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>FB Ad Settings</td><td>✅</td><td>✅</td><td>❌</td><td>কিছু না</td></tr>
+    <tr><td>System Reset</td><td>—</td><td>সব মুছবে</td><td>✅ (GentiX@Reset)</td><td>অপরিবর্তনীয়!</td></tr>
+  </table>
+</div>
+
+<!-- S17: Troubleshooting -->
+<div class="section" id="s17">
+  <div class="section-title">🔧 17. সাধারণ ত্রুটি ও সমাধান</div>
+
+  <table>
+    <tr><th>সমস্যা</th><th>কারণ</th><th>সমাধান</th></tr>
+    <tr><td>Dashboard-এ ০ দেখাচ্ছে</td><td>Date filter ভুল বা data নেই</td><td>Lifetime filter select করুন</td></tr>
+    <tr><td>Sale save হচ্ছে না</td><td>Stock নেই বা field empty</td><td>Stock কিনুন, সব field পূরণ করুন</td></tr>
+    <tr><td>Import error আসছে</td><td>CSV column order ভুল</td><td>Google Sheets সঠিক Tab থেকে download করুন</td></tr>
+    <tr><td>FB Ad Sync কাজ করছে না</td><td>Lifetime USD কমে গেছে বা Ad নেই</td><td>আগের value-র চেয়ে বড় value দিন</td></tr>
+    <tr><td>Reset button কাজ করছে না</td><td>Password ভুল</td><td>সঠিক password: GentiX@Reset</td></tr>
+    <tr><td>Supplier Due ভুল দেখাচ্ছে</td><td>Manual edit হয়েছে</td><td>Settings → Supplier edit করে correct করুন</td></tr>
+    <tr><td>Chart দেখাচ্ছে না</td><td>Internet ধীর বা data নেই</td><td>Page refresh করুন</td></tr>
+    <tr><td>Login হচ্ছে না</td><td>Gmail password ভুল</td><td>Gmail-এ Forgot Password করুন</td></tr>
+  </table>
+</div>
+
+<!-- S18: Important Notes -->
+<div class="section" id="s18">
+  <div class="section-title">⚠️ 18. গুরুত্বপূর্ণ তথ্য ও সতর্কতা</div>
+
+  <div class="alert alert-red">
+    🚨 <strong>Data Safety:</strong> সব data Firebase Cloud-এ। Internet ছাড়া কাজ করবে না। Firebase free tier-এ daily limit আছে — খুব বেশি data import করলে সাময়িক বন্ধ হতে পারে।
+  </div>
+
+  <div class="alert alert-yellow">
+    ⚠️ <strong>COGS Calculation:</strong> COGS সংরক্ষিত হয় না — সবসময় Inventory-র current Buy Price × Qty দিয়ে calculate হয়। Product Buy Price পরিবর্তন করলে পুরোনো sales-এর COGS ও পরিবর্তিত হবে।
+  </div>
+
+  <div class="alert alert-blue">
+    💡 <strong>Timezone:</strong> সব date Bangladesh time (UTC+6) অনুযায়ী। Date filter সঠিকভাবে কাজ করে।
+  </div>
+
+  <div class="alert alert-green">
+    ✅ <strong>Backup System:</strong> Firebase (data) + GitHub (code) — দুটো আলাদা backup। PC folder delete হলেও URL এবং code দুটোই সুরক্ষিত।
+  </div>
+
+  <h3>দৈনিক ব্যবহারের পরামর্শ</h3>
+  <ul>
+    <li>প্রতিদিন নতুন sale / purchase entry করুন</li>
+    <li>FB Ad cost প্রতিদিন sync করুন</li>
+    <li>Customer payment collection Cash Book-এ enter করুন</li>
+    <li>Supplier payment Cash Book-এ enter করুন</li>
+    <li>মাসের শেষে Reports → This Month দিয়ে summary দেখুন</li>
+    <li>Business Overview → CA Audit Report দিয়ে PDF save করুন</li>
+  </ul>
+
+  <h3>Important System URLs</h3>
+  <table>
+    <tr><th>কী</th><th>URL / তথ্য</th></tr>
+    <tr><td>Live ERP</td><td>https://mini-erp-gentix.web.app</td></tr>
+    <tr><td>Firebase Console</td><td>https://console.firebase.google.com/project/mini-erp-gentix</td></tr>
+    <tr><td>GitHub Code</td><td>https://github.com/drsumanmandal86-debug/GentiX-ERP</td></tr>
+    <tr><td>Google Sheet</td><td>(আপনার Google Sheets URL)</td></tr>
+    <tr><td>GAS Sync URL</td><td>https://script.google.com/macros/s/AKfycbxit77j2u3ESQjXjxFJSYqeD3KS4bK9FsdsaWqovHaSJjr_dktKC-ncNUVqJyRta2E/exec</td></tr>
+  </table>
+
+  <!-- Footer -->
+  <div style="margin-top:24px;padding-top:16px;border-top:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div style="font-size:11px;color:#9ca3af">
+      <div>GentiX Fashion ERP — Documentation v2.0</div>
+      <div>Built with Firebase + Vanilla JS | June 2026</div>
+    </div>
+    <div style="border:2px solid #1e3a5f;border-radius:8px;padding:8px 16px;text-align:center">
+      <div style="font-size:10px;font-weight:800;color:#1e3a5f;text-transform:uppercase">GentiX ERP</div>
+      <div style="font-size:9px;color:#64748b">Official Documentation</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- .page -->
+</body>
+</html>
