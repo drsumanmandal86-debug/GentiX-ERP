@@ -128,7 +128,7 @@ const suppliersModule = (() => {
   async function viewLedger(id) {
     const s = suppliers.find(x=>x.id===id);
     if (!s) return;
-    const snap = await window.db.collection('purchases').where('supplierId','==',id).orderBy('createdAt','desc').get();
+    const snap = await window.db.collection('purchases').where('supplierId','==',id).orderBy('date','desc').get();
     const purchases = snap.docs.map(d=>({id:d.id,...d.data()}));
     openModal(`Supplier Ledger: ${s.name}`,`
       <div style="display:flex;gap:20px;margin-bottom:14px;background:#f9fafb;padding:12px;border-radius:8px">

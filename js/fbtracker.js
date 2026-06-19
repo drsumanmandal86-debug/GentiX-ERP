@@ -9,8 +9,8 @@ const fbModule = (() => {
 
   async function fetchAllData() {
     const [adsSnap, logsSnap] = await Promise.all([
-      window.db.collection('fbAdSettings').orderBy('createdAt','asc').get(),
-      window.db.collection('fbAdLogs').orderBy('createdAt','desc').get()
+      window.db.collection('fbAdSettings').orderBy('name','asc').get(),
+      window.db.collection('fbAdLogs').orderBy('date','desc').get()
     ]);
     masterAdData = adsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     adLogs = logsSnap.docs.map(d => ({ id: d.id, ...d.data() }));

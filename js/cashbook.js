@@ -17,7 +17,7 @@ const cashbookModule = (() => {
   }
 
   async function fetchEntries() {
-    const snap = await window.db.collection('cashBook').orderBy('createdAt','desc').get();
+    const snap = await window.db.collection('cashBook').orderBy('date','desc').get();
     allEntries = snap.docs.map(d=>({id:d.id,...d.data()}));
     curPage=1; renderBalance(); renderTable();
   }

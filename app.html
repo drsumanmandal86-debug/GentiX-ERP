@@ -82,10 +82,10 @@
         <div class="user-avatar" id="userInitial">D</div>
         <span id="userDisplayName">Dr. Suman</span>
       </div>
-      <!-- Quick Reset (header shortcut) -->
-      <button class="btn btn-sm" title="Reset All Data — Settings এ যাবে"
+      <!-- Quick Reset (password-protected) -->
+      <button class="btn btn-sm" title="Reset — Password Required"
         style="background:#fff5f5;border:1px solid #fecaca;color:#dc2626;font-size:12px;font-weight:600;padding:6px 12px;gap:5px"
-        onclick="navigateTo('settings')">
+        onclick="headerResetGuard()">
         <i class="bi bi-arrow-counterclockwise"></i> Reset
       </button>
       <button class="btn btn-outline btn-sm" onclick="firebase.auth().signOut().then(()=>location.href='index.html')">
@@ -278,6 +278,18 @@ auth.onAuthStateChanged(async user => {
 
   await navigateTo('dashboard');
 });
+
+function headerResetGuard() {
+  const expected = window.appSettings?.resetPassword || 'GentiX@Reset';
+  const pass = prompt('⚠️ Reset করতে Admin Password দিন:\n(ভুল password দিলে কিছু হবে না)');
+  if (!pass) return;
+  if (pass !== expected) {
+    alert('❌ ভুল Password! Data reset করা যাবে না।');
+    return;
+  }
+  navigateTo('settings');
+  setTimeout(() => toast('Settings → Reset section এ যান', 'warning'), 500);
+}
 
 async function navigateTo(section) {
   if (!MODULES[section]) return;

@@ -94,8 +94,8 @@ const dashModule = (() => {
       productDocs.forEach(p => {
         if (p.name) costMap[p.name.trim().toLowerCase()] = p.buyPrice || 0;
       });
+      // Adjustment entries have negative qty → naturally reduces COGS (return reverses cost)
       const totalCOGS = activeSales
-        .filter(s => s.status !== 'Adjustment') // adjustments don't have COGS
         .reduce((s,d) => {
           const buyPrice = costMap[(d.product||'').trim().toLowerCase()] || d.buyPrice || 0;
           return s + (d.qty||0) * buyPrice;
@@ -141,11 +141,13 @@ const dashModule = (() => {
         ? Math.round(totalExpenses / (grossProfit / totalSales)) : 0;
       const breakEvenText = `${fmt(beAmt)} (${expRatio}%)`;
 
-      // 30D Forecast
+      // 30D Forecast — use period's own days (not lifetime days) so Yesterday/7days are accurate
       const bizStart = window.appSettings?.businessStart
         ? new Date(window.appSettings.businessStart) : new Date('2026-01-01');
-      const daysOld   = Math.max(1, Math.ceil((new Date()-bizStart)/86400000));
-      const forecast30 = Math.max(0, Math.round((netProfit/daysOld)*30));
+      const periodDays = range
+        ? Math.max(1, Math.round((range.to - range.from) / 86400000) + 1)
+        : Math.max(1, Math.ceil((new Date() - bizStart) / 86400000));
+      const forecast30 = Math.max(0, Math.round((netProfit / periodDays) * 30));
 
       // ── Update DOM ──
       const fmtN = v => Number(v||0).toLocaleString('en-IN', {maximumFractionDigits:0});
@@ -189,7 +191,7 @@ const dashModule = (() => {
   async function loadBottomCards(products, sales, suppliers) {
     // Top Selling
     const salesMap = {};
-    sales.filter(s=>s.status!=='Returned'&&s.status!=='Adjustment').forEach(s => {
+    sales.filter(s=>s.status!=='Returned').forEach(s => {
       const name = s.product || 'Unknown';
       salesMap[name] = (salesMap[name]||0) + (s.qty||0);
     });
@@ -203,17 +205,29 @@ const dashModule = (() => {
           </div>`).join('')
       : '<div class="empty-state" style="padding:14px"><p>No sales data</p></div>';
 
-    // Low Stock
-    const lowStock = products.filter(p=>(p.currentStock||0)<10)
-      .sort((a,b)=>(a.currentStock||0)-(b.currentStock||0)).slice(0,5);
+    // Stock Status — all products sorted by stock ascending, color-coded
+    const allStock = [...products].sort((a,b)=>(a.currentStock||0)-(b.currentStock||0));
     const lowEl = document.getElementById('dash-low-stock');
-    if (lowEl) lowEl.innerHTML = lowStock.length
-      ? lowStock.map(p=>`
-          <div class="info-row">
-            <span class="info-name">${p.name}</span>
-            <span class="info-badge ${(p.currentStock||0)===0?'zero':'low'}">${p.currentStock||0} left</span>
-          </div>`).join('')
-      : '<div class="empty-state" style="padding:14px"><p style="color:#27ae60">✓ All items in stock</p></div>';
+    if (lowEl) {
+      const stockBadge = (qty) => {
+        if (qty === 0) return ['zero','#e74c3c','Out of Stock'];
+        if (qty < 10)  return ['low','#e67e22','Very Low'];
+        if (qty < 100) return ['','#f39c12','Low Stock'];
+        return ['','#27ae60','In Stock'];
+      };
+      lowEl.style.maxHeight = '240px';
+      lowEl.style.overflowY = 'auto';
+      lowEl.innerHTML = allStock.length
+        ? allStock.map(p => {
+            const qty = p.currentStock || 0;
+            const [cls, color, label] = stockBadge(qty);
+            return `<div class="info-row" style="border-bottom:1px solid #f3f4f6;padding:7px 0">
+              <span class="info-name" style="font-size:13px">${p.name}</span>
+              <span style="font-size:12px;font-weight:700;color:${color};background:${color}18;padding:2px 8px;border-radius:20px;white-space:nowrap">${qty} pcs</span>
+            </div>`;
+          }).join('')
+        : '<div class="empty-state" style="padding:14px"><p>No inventory data</p></div>';
+    }
 
     // Payable Suppliers
     const payable = suppliers.filter(s=>(s.currentDue||s.totalDue||0)>0)

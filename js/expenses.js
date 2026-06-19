@@ -6,7 +6,7 @@ const expensesModule = (() => {
   async function load() { renderLayout(); await fetchExpenses(); }
 
   async function fetchExpenses() {
-    const snap = await window.db.collection('expenses').orderBy('createdAt','desc').get();
+    const snap = await window.db.collection('expenses').orderBy('date','desc').get();
     allExpenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     curPage = 1; renderTable();
   }

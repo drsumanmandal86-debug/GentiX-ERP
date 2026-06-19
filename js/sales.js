@@ -12,7 +12,7 @@ const salesModule = (() => {
 
   async function fetchProducts(){const s=await window.db.collection('products').orderBy('name').get();products=s.docs.map(d=>({id:d.id,...d.data()}));}
   async function fetchCustomers(){const s=await window.db.collection('customers').orderBy('name').get();customers=s.docs.map(d=>({id:d.id,...d.data()}));}
-  async function fetchSales(){const s=await window.db.collection('sales').orderBy('createdAt','desc').get();allSalesData=s.docs.map(d=>({id:d.id,...d.data()}));curPage=1;renderTable();}
+  async function fetchSales(){const s=await window.db.collection('sales').orderBy('date','desc').get();allSalesData=s.docs.map(d=>({id:d.id,...d.data()}));curPage=1;renderTable();}
 
   function renderLayout() {
     document.getElementById('section-sales').innerHTML = `
@@ -249,20 +249,53 @@ const salesModule = (() => {
     }catch(e){btn.disabled=false;btn.textContent='Confirm Bulk Return';toast('Error: '+e.message,'error');}
   }
 
-  async function handleReturn(saleId,product,currentQty,totalAmount){
-    const rQty=parseInt(prompt(`How many units of "${product}" were returned? (Max: ${currentQty})`,currentQty));
-    if(!rQty||isNaN(rQty))return;
-    if(rQty>currentQty||!confirm(`Confirm returning ${rQty} items?`))return;
-    const snap=await window.db.collection('sales').where('saleId','==',saleId).get();
-    if(snap.empty){toast('Sale not found','error');return;}
-    const docRef=snap.docs[0].ref;const sd=snap.docs[0].data();
-    const retAmt=(totalAmount/currentQty)*rQty;const newSts=rQty>=currentQty?'Returned':'Partial-Return';
-    const batch=window.db.batch();
-    if(rQty>=currentQty)batch.update(docRef,{status:'Returned'});
-    else batch.update(docRef,{qty:currentQty-rQty,total:totalAmount-retAmt,status:'Partial-Return'});
-    if(sd.productId)batch.update(window.db.collection('products').doc(sd.productId),{currentStock:firebase.firestore.FieldValue.increment(rQty)});
-    if(sd.customerId)batch.update(window.db.collection('customers').doc(sd.customerId),{totalOrder:firebase.firestore.FieldValue.increment(-rQty),totalCod:firebase.firestore.FieldValue.increment(-retAmt)});
-    await batch.commit();toast('Return Processed!','success');await fetchSales();
+  function handleReturn(saleId,product,currentQty,totalAmount,docId,custId,prodId){
+    const unitPrice=Math.round(totalAmount/currentQty);
+    openModal('Return Entry',`
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">Return Date</label>
+        <input type="date" id="ret-date" class="form-control" value="${todayStr()}">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">Return Qty (Max: ${currentQty})</label>
+        <input type="number" id="ret-qty" class="form-control" value="${currentQty}" min="1" max="${currentQty}">
+      </div>
+      <div style="background:#fff8f5;border:1px solid #fde8d8;border-radius:8px;padding:10px;font-size:13px;color:#6b7280">
+        <b>${product}</b> · Unit: ${fmt(unitPrice)} · Total: ${fmt(totalAmount)}
+      </div>`,
+      `<button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+       <button class="btn btn-danger" onclick="salesModule.confirmReturn('${saleId}','${product.replace(/'/g,"\\'")}',${currentQty},${totalAmount},'${docId}','${custId||''}','${prodId||''}')">
+         <i class="bi bi-arrow-counterclockwise"></i> Confirm Return
+       </button>`);
+  }
+
+  async function confirmReturn(saleId,product,currentQty,totalAmount,docId,custId,prodId){
+    const rQty=ni(document.getElementById('ret-qty')?.value);
+    const retDate=document.getElementById('ret-date')?.value||todayStr();
+    if(!rQty||rQty<=0){toast('Return qty দিন','error');return;}
+    if(rQty>currentQty){toast(`Max ${currentQty} pcs return করা যাবে`,'error');return;}
+    const retAmt=Math.round((totalAmount/currentQty)*rQty);
+    const unitPrice=Math.round(totalAmount/currentQty);
+    const orig=allSalesData.find(x=>x.id===docId)||{};
+    closeModal();
+    try{
+      const batch=window.db.batch();
+      // Mark original (UI only — keeps Active status for correct financial calculation)
+      batch.update(window.db.collection('sales').doc(docId),{returned:true,returnQty:rQty,returnDate:retDate});
+      // New Adjustment entry (negative qty/total) — shows in history like GAS
+      const adjRef=window.db.collection('sales').doc();
+      batch.set(adjRef,{saleId:'RTN-'+Date.now(),date:retDate,customerId:custId||orig.customerId||'',customerName:orig.customerName||'',product,productId:prodId||orig.productId||'',qty:-rQty,price:unitPrice,total:-retAmt,cogs:0,status:'Adjustment',refSaleId:saleId,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      // Product stock — lookup by ID, fallback to name
+      const effProdId=prodId||orig.productId;
+      const prodDoc=effProdId?products.find(p=>p.id===effProdId):null;
+      const prodByName=prodDoc||products.find(p=>(p.name||'').toLowerCase()===(product||'').toLowerCase());
+      if(prodByName)batch.update(window.db.collection('products').doc(prodByName.id),{currentStock:firebase.firestore.FieldValue.increment(rQty)});
+      // Customer — only update if Firestore doc ID exists (not import name strings)
+      const effCustId=custId||orig.customerId;
+      const custDoc=effCustId?customers.find(c=>c.id===effCustId):null;
+      if(custDoc)batch.update(window.db.collection('customers').doc(custDoc.id),{totalOrder:firebase.firestore.FieldValue.increment(-rQty),totalCod:firebase.firestore.FieldValue.increment(-retAmt)});
+      await batch.commit();toast('Return entry সেভ হয়েছে! History-তে দেখুন।','success');await fetchSales();
+    }catch(e){toast('Error: '+e.message,'error');}
   }
 
   function renderTable(){
@@ -275,18 +308,24 @@ const salesModule = (() => {
       <th>Product &amp; Date</th><th>Customer</th><th>Qty</th><th>Price</th><th>Total</th><th>Status</th><th>Actions</th>
     </tr></thead><tbody>
     ${page.map(r=>{
-      const sc={Active:'badge-success',Returned:'badge-danger','Partial-Return':'badge-warning',Adjustment:'badge-info'}[r.status]||'badge-gray';
-      return `<tr>
-        <td><div style="font-weight:700">${r.product||'—'}</div><small style="color:#9ca3af;font-size:11px">${fmtDate(r.date)}</small></td>
+      const isAdj=r.status==='Adjustment';
+      const isRet=r.returned===true;
+      const qty=r.qty||0;const total=r.total||0;
+      const sc=isAdj?'badge-warning':(r.status==='Returned'?'badge-danger':({'Active':'badge-success','Partial-Return':'badge-warning'}[r.status]||'badge-gray'));
+      const badge=isRet&&r.status==='Active'?'Returned':r.status;
+      const canEdit=r.status==='Active'&&!isRet;
+      const canReturn=r.status==='Active'&&!isRet;
+      return `<tr style="${isAdj?'background:#fff5f5':isRet?'opacity:0.65':''}" >
+        <td><div style="font-weight:700">${r.product||'—'}</div><small style="color:#9ca3af;font-size:11px">${fmtDate(r.date)}${isAdj?'<span style="color:#e74c3c;margin-left:4px;font-size:10px">↩ Return</span>':''}</small></td>
         <td>${r.customerName||'—'}</td>
-        <td>${Math.abs(r.qty||0)}</td>
+        <td style="${qty<0?'color:#e74c3c;font-weight:700':''}"><b>${qty}</b></td>
         <td>${fmt(r.price||0)}</td>
-        <td style="color:#27ae60;font-weight:700">${fmt(Math.abs(r.total||0))}</td>
-        <td><span class="badge ${sc}">${r.status}</span></td>
+        <td style="${total<0?'color:#e74c3c;font-weight:700':'color:#27ae60;font-weight:700'}">${total<0?'-'+fmt(Math.abs(total)):fmt(total)}</td>
+        <td><span class="badge ${sc}">${badge}</span></td>
         <td style="white-space:nowrap">
-          ${r.status==='Active'?`<button class="action-btn" onclick="salesModule.showEdit('${r.id}')" title="Edit"><i class="bi bi-pencil-square"></i></button>`:''}
-          ${r.status==='Active'?`<button class="action-btn" onclick="salesModule.handleReturn('${r.saleId}','${r.product}',${r.qty||0},${r.total||0})" title="Return"><i class="bi bi-arrow-counterclockwise"></i></button>`:''}
-          <button class="action-btn" onclick="salesModule.del('${r.id}')" title="Delete"><i class="bi bi-trash3"></i></button>
+          ${canEdit?`<button class="action-btn" onclick="salesModule.showEdit('${r.id}')" title="Edit"><i class="bi bi-pencil-square"></i></button>`:''}
+          ${canReturn?`<button class="action-btn" onclick="salesModule.handleReturn('${r.saleId||r.id}','${(r.product||'').replace(/'/g,"\\'")}',${qty},${total},'${r.id}','${r.customerId||''}','${r.productId||''}')" title="Return"><i class="bi bi-arrow-counterclockwise"></i></button>`:''}
+          ${!isAdj?`<button class="action-btn" onclick="salesModule.del('${r.id}')" title="Delete"><i class="bi bi-trash3"></i></button>`:''}
         </td>
       </tr>`;
     }).join('')}
@@ -300,5 +339,5 @@ const salesModule = (() => {
   }
   function changePage(step){const tp=Math.ceil(allSalesData.length/PER_PAGE),np=curPage+step;if(np>=1&&np<=tp){curPage=np;renderTable();}}
 
-  return{load,updateCustomerBalance,updatePriceHint,validateStockUI,updateTotal,executeSale,showEdit,calcEditTotal,updateSale,del,executeBulkReturn,handleReturn,changePage};
+  return{load,updateCustomerBalance,updatePriceHint,validateStockUI,updateTotal,executeSale,showEdit,calcEditTotal,updateSale,del,executeBulkReturn,handleReturn,confirmReturn,changePage};
 })();

@@ -6,7 +6,7 @@ const purchasesModule = (() => {
   async function load(){renderLayout();await Promise.all([fetchProducts(),fetchSuppliers(),fetchPurchases()]);populateDropdowns();renderTable();}
   async function fetchProducts(){const s=await window.db.collection('products').orderBy('name').get();products=s.docs.map(d=>({id:d.id,...d.data()}));}
   async function fetchSuppliers(){const s=await window.db.collection('suppliers').orderBy('name').get();suppliers=s.docs.map(d=>({id:d.id,...d.data()}));}
-  async function fetchPurchases(){const s=await window.db.collection('purchases').orderBy('createdAt','desc').get();allPurchaseData=s.docs.map(d=>({id:d.id,...d.data()}));curPage=1;renderTable();}
+  async function fetchPurchases(){const s=await window.db.collection('purchases').orderBy('date','desc').get();allPurchaseData=s.docs.map(d=>({id:d.id,...d.data()}));curPage=1;renderTable();}
 
   function renderLayout(){
     document.getElementById('section-purchases').innerHTML=`
@@ -95,14 +95,15 @@ const purchasesModule = (() => {
     try{
       const batch=window.db.batch();
       const purRef=window.db.collection('purchases').doc();
-      batch.set(purRef,{date:purDate,supplierId:suppId,supplierName:suppName,product:prodName,productId:prodId,qty,price,total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      // Weighted average price update
+      // Weighted average price + stock snapshot
       const prodSnap=await window.db.collection('products').doc(prodId).get();
+      let prevStock=0,newStock=qty;
       if(prodSnap.exists){
-        const p=prodSnap.data();const oldQty=p.currentStock||0;const oldPrice=p.buyPrice||0;
-        const newQty=oldQty+qty;const avgPrice=newQty>0?((oldQty*oldPrice)+(qty*price))/newQty:price;
-        batch.update(window.db.collection('products').doc(prodId),{currentStock:newQty,buyPrice:parseFloat(avgPrice.toFixed(2))});
+        const p=prodSnap.data();prevStock=p.currentStock||0;const oldPrice=p.buyPrice||0;
+        newStock=prevStock+qty;const avgPrice=newStock>0?((prevStock*oldPrice)+(qty*price))/newStock:price;
+        batch.update(window.db.collection('products').doc(prodId),{currentStock:newStock,buyPrice:parseFloat(avgPrice.toFixed(2))});
       }
+      batch.set(purRef,{date:purDate,supplierId:suppId,supplierName:suppName,product:prodName,productId:prodId,qty,price,total,prevStock,newStock,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       batch.update(window.db.collection('suppliers').doc(suppId),{totalPurchase:firebase.firestore.FieldValue.increment(total),currentDue:firebase.firestore.FieldValue.increment(total)});
       await batch.commit();
       // Sync to Google Sheets
@@ -179,19 +180,24 @@ const purchasesModule = (() => {
     const page=allPurchaseData.slice((curPage-1)*PER_PAGE,curPage*PER_PAGE);
     if(!page.length){w.innerHTML='<div class="empty-state"><div class="empty-icon">🛍️</div><p>No purchases yet</p></div>';updatePagination(0);return;}
     w.innerHTML=`<table class="data-table"><thead><tr>
-      <th>Date</th><th>Supplier</th><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th><th>Actions</th>
+      <th>Date</th><th>Supplier</th><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th><th>Stock Movement</th><th>Actions</th>
     </tr></thead><tbody>
-    ${page.map(r=>`<tr>
+    ${page.map(r=>{
+      const prev=r.prevStock!=null?r.prevStock:'—';
+      const nw=r.newStock!=null?r.newStock:'—';
+      const stockInfo=prev!=='—'?`<span style="color:#9ca3af;font-size:11px">${prev}</span><span style="color:#3949ab;font-weight:700;margin:0 3px">+${r.qty||0}</span><span style="color:#27ae60;font-weight:700">${nw}</span>`:`<span style="color:#ccc;font-size:11px">—</span>`;
+      return `<tr>
       <td><small style="color:#9ca3af">${fmtDate(r.date)}</small></td>
       <td>${r.supplierName||'—'}</td>
       <td><strong>${r.product||'—'}</strong></td>
-      <td>${r.qty||0}</td><td>${fmt(r.price)}</td>
+      <td style="font-weight:700">${r.qty||0}</td><td>${fmt(r.price)}</td>
       <td style="font-weight:700;color:#3949ab">${fmt(r.total)}</td>
+      <td style="font-size:12px;white-space:nowrap">${stockInfo}</td>
       <td style="white-space:nowrap">
         <button class="action-btn" onclick="purchasesModule.showEdit('${r.id}')" title="Edit"><i class="bi bi-pencil-square"></i></button>
         <button class="action-btn" onclick="purchasesModule.cancelPurchase('${r.id}','${(r.product||'').replace(/'/g,"\\'")}',${r.qty||0},${r.total||0},'${r.supplierId||''}')" title="Cancel/Delete"><i class="bi bi-trash3"></i></button>
       </td>
-    </tr>`).join('')}
+    </tr>`;}).join('')}
     </tbody></table>`;
     updatePagination(tp);
   }

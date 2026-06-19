@@ -18,7 +18,7 @@ const ledgerModule = (() => {
   }
 
   async function fetchData() {
-    const snap = await window.db.collection('personalLedger').orderBy('createdAt','asc').get();
+    const snap = await window.db.collection('personalLedger').orderBy('date','asc').get();
     const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     // Build per-person running balance (matching PersonalLogic.gs behavior)
@@ -267,7 +267,7 @@ const ledgerModule = (() => {
 
     try {
       // Calculate running balance for this person
-      const snap = await window.db.collection('personalLedger').where('personName','==',name).orderBy('createdAt','desc').limit(1).get();
+      const snap = await window.db.collection('personalLedger').where('personName','==',name).orderBy('date','desc').limit(1).get();
       const lastBal = snap.empty ? 0 : (snap.docs[0].data().runBalance || 0);
       const runBalance = lastBal + paid - spent;
 
