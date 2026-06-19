@@ -139,7 +139,7 @@ const purchasesModule = (() => {
         Edit করলে <strong>Supplier Due, Stock Qty এবং Buy Price</strong> — তিনটিই auto-update হবে।
       </div>`,
       `<button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-       <button class="btn btn-primary" onclick="purchasesModule.updatePurchase('${id}',${p.total||0},'${p.supplierId||''}','${p.productId||''}',${p.qty||0},${p.price||0})">Update Purchase</button>`);
+       <button class="btn btn-primary" onclick="purchasesModule.updatePurchase('${id}',${p.total||0},'${p.supplierId||''}','${p.productId||''}',${p.qty||0},${p.price||0},'${(p.product||'').replace(/'/g,"\\'")}')">Update Purchase</button>`);
     setTimeout(()=>{
       const qEl=document.getElementById('pe-qty'),prEl=document.getElementById('pe-price'),tEl=document.getElementById('pe-total');
       const calc=()=>{if(qEl&&prEl&&tEl)tEl.value=n(qEl.value)*n(prEl.value);};
@@ -147,7 +147,7 @@ const purchasesModule = (() => {
     },100);
   }
 
-  async function updatePurchase(id,oldTotal,suppId,prodId,oldQty,oldPrice){
+  async function updatePurchase(id,oldTotal,suppId,prodId,oldQty,oldPrice,prodName){
     const date=document.getElementById('pe-date')?.value;
     const qty=ni(document.getElementById('pe-qty')?.value);
     const price=n(document.getElementById('pe-price')?.value);
@@ -155,6 +155,7 @@ const purchasesModule = (() => {
     const newTotal=qty*price;
     const totalDiff=newTotal-oldTotal;
     const qtyDiff=qty-oldQty;
+
     try{
       const batch=window.db.batch();
 
@@ -164,47 +165,53 @@ const purchasesModule = (() => {
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // 2. Recalculate supplier totalPurchase from scratch (prevents negative from imported data)
-      //    and adjust currentDue by difference only
+      // 2. Supplier — recalculate totalPurchase from all purchases (not increment)
       if(suppId){
-        // Sum all purchases for this supplier EXCEPT the one being edited
         const allPurSnap=await window.db.collection('purchases').where('supplierId','==',suppId).get();
         const sumOthers=allPurSnap.docs.filter(d=>d.id!==id).reduce((s,d)=>s+(d.data().total||0),0);
-        const newTotalPurchase=sumOthers+newTotal; // include new total of this purchase
         batch.update(window.db.collection('suppliers').doc(suppId),{
-          totalPurchase:newTotalPurchase,
+          totalPurchase:sumOthers+newTotal,
           currentDue:firebase.firestore.FieldValue.increment(totalDiff)
         });
       }
 
-      // 3. Recalculate product stock + weighted average buy price
-      if(prodId){
-        const prodSnap=await window.db.collection('products').doc(prodId).get();
+      // 3. Product: stock + weighted avg buy price
+      //    If prodId missing (imported data), look up product by name
+      let resolvedProdId=prodId;
+      if(!resolvedProdId && prodName){
+        const pSnap=await window.db.collection('products')
+          .where('name','==',prodName).limit(1).get();
+        if(!pSnap.empty){ resolvedProdId=pSnap.docs[0].id; }
+      }
+
+      if(resolvedProdId){
+        const prodSnap=await window.db.collection('products').doc(resolvedProdId).get();
         if(prodSnap.exists){
           const pd=prodSnap.data();
           const curStock=pd.currentStock||0;
           const curBuyPrice=pd.buyPrice||0;
           const newStock=curStock+qtyDiff;
 
-          // Weighted average: remove old contribution, add new
-          // curStock × curBuyPrice = current total inventory value
+          // Weighted avg: remove old purchase contribution, add new
           const curTotalValue=curStock*curBuyPrice;
           const newTotalValue=curTotalValue-(oldQty*(oldPrice||0))+(qty*price);
           const newAvgPrice=newStock>0?parseFloat((newTotalValue/newStock).toFixed(2)):price;
 
-          batch.update(window.db.collection('products').doc(prodId),{
-            currentStock:newStock,
+          batch.update(window.db.collection('products').doc(resolvedProdId),{
+            currentStock:Math.max(0,newStock),
             buyPrice:newAvgPrice>0?newAvgPrice:price
           });
-        } else {
-          // product doc not found — only adjust stock
-          if(qtyDiff!==0) batch.update(window.db.collection('products').doc(prodId),{currentStock:firebase.firestore.FieldValue.increment(qtyDiff)});
+
+          // Also update productId on the purchase doc for future edits
+          if(!prodId){
+            batch.update(window.db.collection('purchases').doc(id),{productId:resolvedProdId});
+          }
         }
       }
 
       await batch.commit();
       closeModal();
-      toast('Purchase updated! Stock, Buy Price ও Supplier Due সমন্বয় হয়েছে।','success');
+      toast(`✅ Updated! Stock ${qtyDiff>=0?'+':''}${qtyDiff} pcs, Due ${totalDiff>=0?'+':''}${fmt(Math.abs(totalDiff))} adjusted.`,'success');
       await fetchPurchases();
     }catch(e){toast('Error: '+e.message,'error');}
   }
