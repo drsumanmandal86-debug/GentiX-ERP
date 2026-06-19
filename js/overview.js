@@ -65,9 +65,9 @@ const overviewModule = (() => {
       const bp=costMap[(d.product||'').trim().toLowerCase()]||d.buyPrice||0;
       return s+(d.qty||0)*bp;
     },0);
-    const opex=exps.reduce((s,d)=>s+(d.amount||0),0);
     const adCost=exps.filter(e=>(e.category||'').match(/facebook|meta/i)).reduce((s,d)=>s+(d.amount||0),0);
-    const net=rev-cogs-opex;
+    const opex=exps.filter(e=>!(e.category||'').match(/facebook|meta/i)).reduce((s,d)=>s+(d.amount||0),0);
+    const net=rev-cogs-opex-adCost; // both expense types subtracted
     const gross=rev-cogs;
     return { rev, cogs, opex, adCost, net, gross, txns:sales.length,
       netMargin:rev>0?(net/rev*100):0, grossMargin:rev>0?(gross/rev*100):0 };
@@ -293,8 +293,9 @@ const overviewModule = (() => {
 
     allExpenses.filter(e=>{const ds=parseDs(e.date);return ds>=fromDs&&ds<=toDs&&(e.status==='Paid'||e.category==='Meta/Facebook Ads');}).forEach(e=>{
       const ds=parseDs(e.date);const key=keyFn(ds);if(!key)return;add(key);
-      monthData[key].opex+=e.amount||0;
-      if((e.category||'').match(/facebook|meta/i))monthData[key].adCost+=e.amount||0;
+      const isFB=(e.category||'').match(/facebook|meta/i);
+      if(isFB) monthData[key].adCost+=e.amount||0;  // FB Ads → adCost only
+      else     monthData[key].opex+=e.amount||0;     // Other expenses → opex only
     });
 
     const months=Object.keys(monthData).sort();
@@ -302,7 +303,7 @@ const overviewModule = (() => {
     // KPI totals
     let tR=0,tC=0,tE=0,tA=0,tT=0;
     months.forEach(m=>{tR+=monthData[m].rev;tC+=monthData[m].cogs;tE+=monthData[m].opex;tA+=monthData[m].adCost;tT+=monthData[m].txns;});
-    const tN=tR-tC-tE,mg=tR>0?(tN/tR*100).toFixed(1):0;
+    const tN=tR-tC-tE-tA, mg=tR>0?(tN/tR*100).toFixed(1):0; // net = revenue - cogs - expenses - ad spend
     const inv=allCash.filter(e=>e.type==='Investment'||e.category==='Investment').reduce((s,e)=>s+(e.cashIn||e.amount||0),0)||window.appSettings?.totalInvestment||0;
     const roi=inv>0?(tN/inv*100).toFixed(1):0;
     const nc=tN>=0?'#22c55e':'#ef4444';
@@ -328,10 +329,10 @@ const overviewModule = (() => {
       const[y,mo]=m.split('-');return`${MN[parseInt(mo)-1]} '${y.substring(2)}`;
     });
     const revD=months.map(m=>monthData[m].rev);
-    const costD=months.map(m=>monthData[m].cogs+monthData[m].opex);
-    const netD=months.map(m=>monthData[m].rev-monthData[m].cogs-monthData[m].opex);
+    const costD=months.map(m=>monthData[m].cogs+monthData[m].opex+monthData[m].adCost);
+    const netD=months.map(m=>monthData[m].rev-monthData[m].cogs-monthData[m].opex-monthData[m].adCost);
     let cumNet=0;
-    const roiD=months.map(m=>{cumNet+=monthData[m].rev-monthData[m].cogs-monthData[m].opex;return inv>0?parseFloat((cumNet/inv*100).toFixed(1)):0;});
+    const roiD=months.map(m=>{cumNet+=monthData[m].rev-monthData[m].cogs-monthData[m].opex-monthData[m].adCost;return inv>0?parseFloat((cumNet/inv*100).toFixed(1)):0;});
 
     myChart=new Chart(ctx,{
       data:{labels,datasets:[
@@ -371,9 +372,9 @@ const overviewModule = (() => {
     if(tb){
       const rowKeys=[...months].reverse(); // newest first — both daily and monthly descending
       tb.innerHTML=rowKeys.filter(m=>{ // hide zero-rows for daily if nothing happened
-        const d=monthData[m];return !isDaily||(d.rev>0||d.cogs>0||d.opex>0||d.txns>0);
+        const d=monthData[m];return !isDaily||(d.rev>0||d.cogs>0||d.opex>0||d.adCost>0||d.txns>0);
       }).map(m=>{
-        const d=monthData[m];const net=d.rev-d.cogs-d.opex;
+        const d=monthData[m];const net=d.rev-d.cogs-d.opex-d.adCost; // net = rev - cogs - other_exp - fb_ads
         const mg=d.rev>0?(net/d.rev*100).toFixed(1):'0.0';const nc2=net>=0?'#27ae60':'#e74c3c';
         let label;
         if(isDaily){const[y,mo,dy]=m.split('-');label=`${parseInt(dy)} ${MN[parseInt(mo)-1]} ${y}`;}
@@ -385,7 +386,7 @@ const overviewModule = (() => {
           <td style="text-align:right;color:#6b7280">${d.cogs>0?fmt(d.cogs):'—'}</td>
           <td style="text-align:right;color:#e67e22">${d.opex>0?fmt(d.opex):'—'}</td>
           <td style="text-align:right;color:#e74c3c">${d.adCost>0?fmt(d.adCost):'—'}</td>
-          <td style="text-align:right;font-weight:800;color:${nc2}">${d.rev>0||d.opex>0?fmt(net):'—'}</td>
+          <td style="text-align:right;font-weight:800;color:${nc2}">${(d.rev>0||d.opex>0||d.adCost>0)?fmt(net):'—'}</td>
           <td style="text-align:right;padding-right:14px">${d.rev>0?`<span style="background:${nc2}18;color:${nc2};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${mg}%</span>`:'—'}</td>
         </tr>`;
       }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">No data for selected period</td></tr>';
