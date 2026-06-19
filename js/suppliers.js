@@ -149,22 +149,34 @@ const suppliersModule = (() => {
       const entries = [];
       purSnap.docs.forEach(d => {
         const p = d.data();
-        entries.push({ date: p.date||'', desc: `Purchase: ${p.product||''}  (${p.qty||0} × ${fmt(p.price||0)})`, debit: p.total||0, credit: 0, type:'purchase' });
+        entries.push({ date: p.date||'', desc: `Purchase: ${p.product||''} (${p.qty||0} × ${fmt(p.price||0)})`, debit: p.total||0, credit: 0, type:'purchase' });
       });
       cbSnap.docs.forEach(d => {
         const c = d.data();
-        entries.push({ date: c.date||'', desc: `Payment: ${c.particulars||'Supplier Payment'}`, debit: 0, credit: c.cashOut||c.amount||0, type:'payment' });
+        const amt = c.cashOut||c.amount||0;
+        if (amt > 0) entries.push({ date: c.date||'', desc: `Payment: ${c.particulars||'Supplier Payment'}`, debit: 0, credit: amt, type:'payment' });
       });
 
       // Sort by date ascending, calculate running balance
-      entries.sort((a,b) => a.date.localeCompare(b.date));
+      entries.sort((a,b) => (a.date||'').localeCompare(b.date||''));
       let bal = 0;
       entries.forEach(e => { bal += e.debit - e.credit; e.balance = bal; });
 
-      // Summary
-      const totDebit  = entries.reduce((s,e)=>s+e.debit,0);
-      const totCredit = entries.reduce((s,e)=>s+e.credit,0);
-      const finalDue  = totDebit - totCredit;
+      // Summary — use supplier document's currentDue as ground truth
+      const totDebit  = entries.reduce((sm,e)=>sm+e.debit,0);
+      const realDue   = s.currentDue || s.totalDue || 0;   // from supplier doc (most accurate)
+      const totCredit = Math.max(0, totDebit - realDue);    // implied total paid
+      const finalDue  = realDue;
+
+      // If Cash Book has no payment entries but we know payments happened,
+      // show a synthetic "Prior Payments" row to balance the ledger
+      const cbCreditTotal = cbSnap.docs.reduce((sm,d)=>sm+(d.data().cashOut||d.data().amount||0),0);
+      if (cbCreditTotal === 0 && totCredit > 0) {
+        entries.push({
+          date: '', desc: '📋 Prior Payments (imported balance adjustment)',
+          debit: 0, credit: totCredit, type: 'prior', balance: realDue
+        });
+      }
 
       _slData = [...entries].reverse(); // newest first for display
       _slPage = 1;
@@ -197,9 +209,10 @@ const suppliersModule = (() => {
               <tbody>
               ${page.map(e=>{
                 const bc = e.balance>0?'#e74c3c':e.balance<0?'#27ae60':'#9ca3af';
-                return`<tr style="${e.type==='payment'?'background:#f0fdf4':''}">
-                  <td style="white-space:nowrap;color:#6b7280">${fmtDate(e.date)}</td>
-                  <td style="font-size:13px">${e.desc}</td>
+                const rowBg = e.type==='payment'?'background:#f0fdf4':e.type==='prior'?'background:#fefce8':'';
+                return`<tr style="${rowBg}">
+                  <td style="white-space:nowrap;color:#6b7280">${e.date?fmtDate(e.date):'—'}</td>
+                  <td style="font-size:13px;color:${e.type==='prior'?'#92400e':'inherit'}">${e.desc}</td>
                   <td style="text-align:right;color:#e74c3c;font-weight:600">${e.debit>0?fmt(e.debit):'—'}</td>
                   <td style="text-align:right;color:#27ae60;font-weight:600">${e.credit>0?fmt(e.credit):'—'}</td>
                   <td style="text-align:right;font-weight:700;color:${bc}">${fmt(Math.abs(e.balance))}${e.balance<0?' Cr':e.balance>0?' Dr':''}</td>
