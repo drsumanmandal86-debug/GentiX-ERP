@@ -426,11 +426,17 @@ textarea.form-control{resize:vertical;min-height:70px}
 
 /* ── FB Tracker & Ledger specific layout ── */
 
-/* Desktop: FB Tracker grid */
+/* FB Tracker — desktop: 2-column grid */
 #fb-main-grid{
   display:grid;
   grid-template-columns:1fr 0.55fr;
   gap:1rem;
+}
+/* Mobile: flex-column, Daily Sync (right col) shows first via order */
+@media(max-width:768px){
+  #fb-main-grid{display:flex!important;flex-direction:column;gap:12px}
+  #fb-right-col{order:-1;width:100%}
+  #fb-left-col{order:1;width:100%}
 }
 
 /* Ledger — mobile-first: block by default */

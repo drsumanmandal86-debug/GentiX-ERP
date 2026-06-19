@@ -19,47 +19,13 @@ const fbModule = (() => {
   }
 
   function renderLayout() {
-    const mob = window.innerWidth <= 768;
+    // CSS handles layout: desktop=grid(1fr 0.55fr), mobile=flex-column Daily Sync first
+    // See #fb-main-grid rules in style.css — NO JS branching needed
+    document.getElementById('section-fbtracker').innerHTML = `
+    <div id="fb-main-grid">
 
-    const rightPanel = `
-      <div id="fb-right-col" class="table-card" style="overflow:hidden">
-        <div style="padding:12px 16px;background:#3949ab;color:#fff;font-size:15px;font-weight:700">
-          <i class="bi bi-cloud-upload me-2"></i>Daily Cost Sync
-        </div>
-        <div style="padding:${mob?'14px':'18px'}">
-          <div style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:12px;padding:${mob?'14px':'18px'};text-align:center;margin-bottom:14px">
-            <small style="font-size:10px;opacity:.8;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px">Spent Today (Total)</small>
-            <div id="grandTotalDisplay" style="font-size:${mob?'28px':'26px'};font-weight:800">$0.00</div>
-            <div id="grandTotalBDTDisplay" style="font-size:16px;opacity:.9;margin-top:2px">৳0</div>
-          </div>
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label" style="font-weight:700;font-size:13px">Select Active Ad</label>
-            <select id="adSelector" class="form-control" onchange="fbModule.updatePrevSpent()" style="height:${mob?'48px':'40px'};font-size:${mob?'15px':'13px'}"></select>
-          </div>
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label" style="color:#3949ab;font-weight:700">Meta Lifetime Spent ($)</label>
-            <input type="number" id="lifetimeSpent" class="form-control" step="0.01" oninput="fbModule.calcInstant()"
-              style="height:${mob?'56px':'45px'};font-size:${mob?'22px':'18px'};font-weight:700" placeholder="0.00">
-            <div id="prevSpentInfo" style="font-size:11px;color:#9ca3af;margin-top:3px">System Life: $0.00</div>
-          </div>
-          <div class="form-group" style="margin-bottom:14px">
-            <label class="form-label" style="font-weight:700;font-size:13px">USD Rate (1$ = ? ৳)</label>
-            <input type="number" id="usdRate" class="form-control" value="129" oninput="fbModule.calcInstant()" style="height:${mob?'46px':'auto'};font-size:${mob?'15px':'13px'}">
-          </div>
-          <div style="text-align:center;border-top:1px solid #e9ecef;padding-top:14px">
-            <div id="calcDisplay" style="font-size:15px;font-weight:700;color:#6b7280;margin-bottom:12px">Today: $0.00 / ৳0</div>
-            <button id="fbSaveBtn" onclick="fbModule.syncDailySpent()" class="btn btn-success"
-              style="width:100%;padding:${mob?'14px':'12px'};font-size:${mob?'15px':'14px'};justify-content:center">
-              <i class="bi bi-cloud-upload"></i> SAVE &amp; SYNC
-            </button>
-          </div>
-        </div>
-      </div>`;
-
-    const leftPanel = `
+      <!-- LEFT: Ad Table + Expense History (CSS: order 2 on mobile) -->
       <div id="fb-left-col">
-        <!-- Ad Performance Table -->
-        <!-- Ad Performance Table -->
         <div class="table-card mb-3" style="overflow:hidden">
           <div style="padding:10px 16px;background:#212529;color:#fff;display:flex;justify-content:space-between;align-items:center">
             <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700">
@@ -70,24 +36,21 @@ const fbModule = (() => {
               <i class="bi bi-arrow-clockwise"></i> Refresh
             </button>
           </div>
-          <div style="max-height:380px;overflow-y:auto">
-            <table class="data-table" id="adTableEl"><thead><tr>
-              <th style="min-width:200px;padding-left:14px">Ad Name Details</th>
-              <th style="width:100px;text-align:center">Status</th>
-              <th style="width:140px;text-align:right">Today ($ / ৳)</th>
-              <th style="width:120px;text-align:right">Lifetime ($)</th>
-              <th style="width:50px"></th>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:380px;overflow-y:auto">
+            <table class="data-table" id="adTableEl" style="min-width:460px"><thead><tr>
+              <th style="padding-left:14px">Ad Name Details</th>
+              <th style="width:90px;text-align:center">Status</th>
+              <th style="width:130px;text-align:right">Today ($ / ৳)</th>
+              <th style="width:110px;text-align:right">Lifetime ($)</th>
+              <th style="width:40px"></th>
             </tr></thead><tbody id="adPerformanceBody"></tbody></table>
           </div>
-          <!-- Add New Ad -->
-          <div style="padding:10px 14px;border-top:1px solid #e9ecef;background:#f8fafc;display:flex;gap:8px">
-            <input type="text" id="newAdName" class="form-control" style="flex:1;padding:7px 10px;font-size:13px" placeholder="New Ad Name">
-            <input type="number" id="initialSpent" class="form-control" style="width:130px;padding:7px 10px;font-size:13px" placeholder="Initial $ (Optional)">
+          <div style="padding:10px 14px;border-top:1px solid #e9ecef;background:#f8fafc;display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="newAdName" class="form-control" style="flex:1;min-width:120px;padding:7px 10px;font-size:13px" placeholder="New Ad Name">
+            <input type="number" id="initialSpent" class="form-control" style="width:120px;padding:7px 10px;font-size:13px" placeholder="Initial $ (opt)">
             <button class="btn btn-primary btn-sm" onclick="fbModule.createAd()" style="white-space:nowrap">+ Add Ad</button>
           </div>
         </div>
-
-        <!-- Expense History -->
         <div class="table-card" style="overflow:hidden">
           <div style="padding:10px 14px;background:#6c757d;color:#fff">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -101,25 +64,51 @@ const fbModule = (() => {
               ${['today','yesterday','last7','thisMonth','lifetime'].map(t=>`<button class="btn btn-sm" style="background:${t==='lifetime'?'#fcd34d':'rgba(255,255,255,.15)'};color:${t==='lifetime'?'#212529':'#fff'};font-size:10px;padding:2px 8px;border:none" onclick="fbModule.filterByRange('${t}')">${{today:'Today',yesterday:'Yesterday',last7:'7 Days',thisMonth:'This Month',lifetime:'Lifetime'}[t]}</button>`).join('')}
             </div>
           </div>
-          <div style="padding:10px 14px;border-bottom:1px solid #e9ecef;display:flex;gap:8px;align-items:flex-end">
-            <div style="flex:1"><label class="form-label" style="font-size:11px">From</label><input type="date" id="fbStartDate" class="form-control" style="padding:6px 10px;font-size:13px"></div>
-            <div style="flex:1"><label class="form-label" style="font-size:11px">To</label><input type="date" id="fbEndDate" class="form-control" style="padding:6px 10px;font-size:13px"></div>
+          <div style="padding:10px 14px;border-bottom:1px solid #e9ecef;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:120px"><label class="form-label" style="font-size:11px">From</label><input type="date" id="fbStartDate" class="form-control" style="padding:6px 10px;font-size:13px"></div>
+            <div style="flex:1;min-width:120px"><label class="form-label" style="font-size:11px">To</label><input type="date" id="fbEndDate" class="form-control" style="padding:6px 10px;font-size:13px"></div>
             <button class="btn btn-primary btn-sm" onclick="fbModule.getFilteredReport()" style="padding:8px 14px">GENERATE</button>
           </div>
-          <div style="max-height:280px;overflow-y:auto">
+          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
             <table class="data-table"><thead><tr><th>Date</th><th>Ad Name</th><th style="text-align:right">USD</th><th style="text-align:right">BDT</th></tr></thead>
             <tbody id="reportTableBody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#9ca3af">Select date range and click GENERATE</td></tr></tbody></table>
           </div>
         </div>
       </div>
 
-      </div>`;
-
-    // Mobile: Daily Sync first, then Ad Table
-    // Desktop: Side by side grid
-    document.getElementById('section-fbtracker').innerHTML = mob
-      ? `<div style="width:100%">${rightPanel}</div><div style="margin-top:12px;width:100%">${leftPanel}</div>`
-      : `<div style="display:grid;grid-template-columns:1fr 0.55fr;gap:1rem">${leftPanel}${rightPanel}</div>`;
+      <!-- RIGHT: Daily Cost Sync (CSS: order -1 on mobile = shows first) -->
+      <div id="fb-right-col" class="table-card" style="overflow:hidden">
+        <div style="padding:12px 16px;background:#3949ab;color:#fff;font-size:15px;font-weight:700">
+          <i class="bi bi-cloud-upload me-2"></i>Daily Cost Sync
+        </div>
+        <div style="padding:16px">
+          <div style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:12px;padding:16px;text-align:center;margin-bottom:14px">
+            <small style="font-size:10px;opacity:.8;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px">Spent Today (Total)</small>
+            <div id="grandTotalDisplay" style="font-size:26px;font-weight:800">$0.00</div>
+            <div id="grandTotalBDTDisplay" style="font-size:16px;opacity:.9;margin-top:2px">৳0</div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label" style="font-weight:700;font-size:13px">Select Active Ad</label>
+            <select id="adSelector" class="form-control" onchange="fbModule.updatePrevSpent()" style="height:42px"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label" style="color:#3949ab;font-weight:700">Meta Lifetime Spent ($)</label>
+            <input type="number" id="lifetimeSpent" class="form-control" step="0.01" oninput="fbModule.calcInstant()" style="height:48px;font-size:20px;font-weight:700" placeholder="0.00">
+            <div id="prevSpentInfo" style="font-size:11px;color:#9ca3af;margin-top:3px">System Life: $0.00</div>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label" style="font-weight:700;font-size:13px">USD Rate (1$ = ? ৳)</label>
+            <input type="number" id="usdRate" class="form-control" value="129" oninput="fbModule.calcInstant()" style="height:40px">
+          </div>
+          <div style="border-top:1px solid #e9ecef;padding-top:12px">
+            <div id="calcDisplay" style="font-size:15px;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center">Today: $0.00 / ৳0</div>
+            <button id="fbSaveBtn" onclick="fbModule.syncDailySpent()" class="btn btn-success" style="width:100%;padding:13px;font-size:14px;justify-content:center">
+              <i class="bi bi-cloud-upload"></i> SAVE &amp; SYNC
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
   }
 
   function renderAdTable() {

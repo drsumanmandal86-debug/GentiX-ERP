@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GentiX Fashion ERP</title>
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
@@ -233,23 +233,23 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="js/config.js?v=6"></script>
-<script src="js/utils.js?v=6"></script>
-<script src="js/sheets-sync.js?v=6"></script>
-<script src="js/import.js?v=6"></script>
-<script src="js/dashboard.js?v=6"></script>
-<script src="js/inventory.js?v=6"></script>
-<script src="js/sales.js?v=6"></script>
-<script src="js/purchases.js?v=6"></script>
-<script src="js/expenses.js?v=6"></script>
-<script src="js/cashbook.js?v=6"></script>
-<script src="js/suppliers.js?v=6"></script>
-<script src="js/customers.js?v=6"></script>
-<script src="js/fbtracker.js?v=6"></script>
-<script src="js/ledger.js?v=6"></script>
-<script src="js/reports.js?v=6"></script>
-<script src="js/overview.js?v=6"></script>
-<script src="js/settings.js?v=6"></script>
+<script src="js/config.js?v=7"></script>
+<script src="js/utils.js?v=7"></script>
+<script src="js/sheets-sync.js?v=7"></script>
+<script src="js/import.js?v=7"></script>
+<script src="js/dashboard.js?v=7"></script>
+<script src="js/inventory.js?v=7"></script>
+<script src="js/sales.js?v=7"></script>
+<script src="js/purchases.js?v=7"></script>
+<script src="js/expenses.js?v=7"></script>
+<script src="js/cashbook.js?v=7"></script>
+<script src="js/suppliers.js?v=7"></script>
+<script src="js/customers.js?v=7"></script>
+<script src="js/fbtracker.js?v=7"></script>
+<script src="js/ledger.js?v=7"></script>
+<script src="js/reports.js?v=7"></script>
+<script src="js/overview.js?v=7"></script>
+<script src="js/settings.js?v=7"></script>
 
 <script>
 firebase.initializeApp(firebaseConfig);
@@ -367,17 +367,26 @@ function makeMobileReady() {
     });
   });
 
-  // 4. CSS-class based grids (fb-main-grid, ledger-main-grid etc.)
-  ['fb-main-grid','ledger-top-row','ledger-main-grid'].forEach(id => {
+  // 4. ledger grids — convert to block (CSS #ledger-main-grid already handles this)
+  ['ledger-top-row','ledger-main-grid'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.style.setProperty('display',               'block', 'important');
-    el.style.setProperty('grid-template-columns', 'none',  'important');
-    el.style.setProperty('width',                 '100%',  'important');
-    Array.from(el.children).forEach(c => {
-      c.style.width = '100%'; c.style.marginBottom = '12px';
-    });
+    el.style.setProperty('display','block','important');
+    el.style.setProperty('width','100%','important');
+    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='12px'; });
   });
+
+  // 4b. FB Tracker — flex+order (Daily Sync shows first on mobile)
+  const fbGrid = document.getElementById('fb-main-grid');
+  if (fbGrid) {
+    fbGrid.style.setProperty('display','flex','important');
+    fbGrid.style.setProperty('flex-direction','column','important');
+    fbGrid.style.setProperty('gap','12px','important');
+    const fbR = document.getElementById('fb-right-col');
+    const fbL = document.getElementById('fb-left-col');
+    if (fbR) { fbR.style.setProperty('order','-1','important'); fbR.style.width='100%'; }
+    if (fbL) { fbL.style.setProperty('order','1','important');  fbL.style.width='100%'; }
+  }
 
   // 5. All form-grid → single column
   document.querySelectorAll('.form-grid').forEach(el => {
