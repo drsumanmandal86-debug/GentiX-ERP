@@ -41,7 +41,29 @@ window.ImportTool = (() => {
 
   const n = v => parseFloat(String(v).replace(/[৳,\s]/g,'')) || 0;
   const s = v => String(v||'').trim();
-  const d = v => { try { return s(v).substring(0,10); } catch(e) { return ''; } };
+
+  // Convert any date format → YYYY-MM-DD
+  // Handles: DD/MM/YYYY, DD/MM/YYYY HH:MM:SS, YYYY-MM-DD, Date objects
+  const d = v => {
+    try {
+      if (!v) return '';
+      // Google Sheets Date object → ISO
+      if (v instanceof Date) {
+        return v.toISOString().substring(0,10);
+      }
+      const str = String(v).trim();
+      if (!str) return '';
+      // Already YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.substring(0,10);
+      // DD/MM/YYYY or DD/MM/YYYY HH:MM:SS (Google Sheets default)
+      const parts = str.substring(0,10).split('/');
+      if (parts.length === 3) {
+        const [day, month, year] = parts;
+        return `${year.padStart(4,'0')}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+      }
+      return str.substring(0,10);
+    } catch(e) { return ''; }
+  };;
 
   // ── Collection mappers (Google Sheet columns → Firestore fields) ──
   const MAPPERS = {

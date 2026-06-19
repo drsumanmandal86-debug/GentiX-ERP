@@ -174,13 +174,26 @@ const reportsModule = (() => {
     const startDate = document.getElementById('repStartDate')?.value;
     const endDate   = document.getElementById('repEndDate')?.value;
     if (!startDate||!endDate) return;
-    const from = new Date(startDate+'T00:00:00'), to = new Date(endDate+'T23:59:59');
+    // Use input date strings directly (no timezone conversion needed)
+    const fds = startDate; // YYYY-MM-DD from date input
+    const tds = endDate;   // YYYY-MM-DD from date input
+
+    // Parse doc date → YYYY-MM-DD (handles DD/MM/YYYY from Google Sheets import)
+    const parseDs = v => {
+      if (!v) return '';
+      const s = String(v).trim();
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+        const p = s.substring(0,10).split('/');
+        return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+      }
+      return s.substring(0,10);
+    };
 
     try {
-      // Fetch all, filter in JS by 'date' string — handles imported + new data
-      const fds = from.toISOString().substring(0,10);
-      const tds = to.toISOString().substring(0,10);
-      const filterByDate = snap => ({ docs: snap.docs.filter(d => { const ds=(d.data().date||'').substring(0,10); return ds>=fds&&ds<=tds; }) });
+      const filterByDate = snap => ({ docs: snap.docs.filter(d => {
+        const ds = parseDs(d.data().date);
+        return ds >= fds && ds <= tds;
+      }) });
 
       const [allSales, expSnap, prodsSnap, cashSnap] = await Promise.all([
         window.db.collection('sales').get(),
