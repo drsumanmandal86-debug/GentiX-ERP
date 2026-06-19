@@ -19,11 +19,46 @@ const fbModule = (() => {
   }
 
   function renderLayout() {
-    document.getElementById('section-fbtracker').innerHTML = `
-    <div id="fb-main-grid">
+    const mob = window.innerWidth <= 768;
 
-      <!-- LEFT COLUMN -->
+    const rightPanel = `
+      <div id="fb-right-col" class="table-card" style="overflow:hidden">
+        <div style="padding:12px 16px;background:#3949ab;color:#fff;font-size:15px;font-weight:700">
+          <i class="bi bi-cloud-upload me-2"></i>Daily Cost Sync
+        </div>
+        <div style="padding:${mob?'14px':'18px'}">
+          <div style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:12px;padding:${mob?'14px':'18px'};text-align:center;margin-bottom:14px">
+            <small style="font-size:10px;opacity:.8;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px">Spent Today (Total)</small>
+            <div id="grandTotalDisplay" style="font-size:${mob?'28px':'26px'};font-weight:800">$0.00</div>
+            <div id="grandTotalBDTDisplay" style="font-size:16px;opacity:.9;margin-top:2px">৳0</div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label" style="font-weight:700;font-size:13px">Select Active Ad</label>
+            <select id="adSelector" class="form-control" onchange="fbModule.updatePrevSpent()" style="height:${mob?'48px':'40px'};font-size:${mob?'15px':'13px'}"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label" style="color:#3949ab;font-weight:700">Meta Lifetime Spent ($)</label>
+            <input type="number" id="lifetimeSpent" class="form-control" step="0.01" oninput="fbModule.calcInstant()"
+              style="height:${mob?'56px':'45px'};font-size:${mob?'22px':'18px'};font-weight:700" placeholder="0.00">
+            <div id="prevSpentInfo" style="font-size:11px;color:#9ca3af;margin-top:3px">System Life: $0.00</div>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label" style="font-weight:700;font-size:13px">USD Rate (1$ = ? ৳)</label>
+            <input type="number" id="usdRate" class="form-control" value="129" oninput="fbModule.calcInstant()" style="height:${mob?'46px':'auto'};font-size:${mob?'15px':'13px'}">
+          </div>
+          <div style="text-align:center;border-top:1px solid #e9ecef;padding-top:14px">
+            <div id="calcDisplay" style="font-size:15px;font-weight:700;color:#6b7280;margin-bottom:12px">Today: $0.00 / ৳0</div>
+            <button id="fbSaveBtn" onclick="fbModule.syncDailySpent()" class="btn btn-success"
+              style="width:100%;padding:${mob?'14px':'12px'};font-size:${mob?'15px':'14px'};justify-content:center">
+              <i class="bi bi-cloud-upload"></i> SAVE &amp; SYNC
+            </button>
+          </div>
+        </div>
+      </div>`;
+
+    const leftPanel = `
       <div id="fb-left-col">
+        <!-- Ad Performance Table -->
         <!-- Ad Performance Table -->
         <div class="table-card mb-3" style="overflow:hidden">
           <div style="padding:10px 16px;background:#212529;color:#fff;display:flex;justify-content:space-between;align-items:center">
@@ -78,54 +113,13 @@ const fbModule = (() => {
         </div>
       </div>
 
-      <!-- RIGHT: Daily Cost Sync -->
-      <div id="fb-right-col" class="table-card" style="overflow:hidden">
-        <div style="padding:12px 16px;background:#3949ab;color:#fff;font-size:15px;font-weight:700">
-          <i class="bi bi-cloud-upload me-2"></i>Daily Cost Sync
-        </div>
-        <div style="padding:18px">
-          <!-- Grand Total -->
-          <div style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:12px;padding:18px;text-align:center;margin-bottom:16px">
-            <small style="font-size:10px;opacity:.8;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px">Spent Today (Total)</small>
-            <div id="grandTotalDisplay" style="font-size:26px;font-weight:800">$0.00</div>
-            <div id="grandTotalBDTDisplay" style="font-size:16px;opacity:.9;margin-top:2px">৳0</div>
-          </div>
+      </div>`;
 
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label" style="font-weight:700;font-size:13px">Select Active Ad</label>
-            <select id="adSelector" class="form-control" onchange="fbModule.updatePrevSpent()" style="height:40px"></select>
-          </div>
-
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label" style="color:#3949ab;font-weight:700">Meta Lifetime Spent ($)</label>
-            <input type="number" id="lifetimeSpent" class="form-control" step="0.01" oninput="fbModule.calcInstant()" style="height:45px;font-size:18px;font-weight:700" placeholder="0.00">
-            <div id="prevSpentInfo" style="font-size:11px;color:#9ca3af;margin-top:3px">System Life: $0.00</div>
-          </div>
-
-          <div class="form-group" style="margin-bottom:14px">
-            <label class="form-label" style="font-weight:700;font-size:13px">USD Rate (1$ = ? ৳)</label>
-            <input type="number" id="usdRate" class="form-control" value="129" oninput="fbModule.calcInstant()">
-          </div>
-
-          <div style="text-align:center;border-top:1px solid #e9ecef;padding-top:14px">
-            <div id="calcDisplay" style="font-size:15px;font-weight:700;color:#6b7280;margin-bottom:12px">Today: $0.00 / ৳0</div>
-            <button id="fbSaveBtn" onclick="fbModule.syncDailySpent()" class="btn btn-success" style="width:100%;padding:12px;font-size:14px;justify-content:center">
-              <i class="bi bi-cloud-upload"></i> SAVE &amp; SYNC
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-
-    // Mobile: Daily Cost Sync panel সবার উপরে, single column
-    if (window.innerWidth <= 768) {
-      const grid  = document.getElementById('fb-main-grid');
-      const right = document.getElementById('fb-right-col');
-      if (grid && right) {
-        grid.style.cssText = 'display:flex!important;flex-direction:column;gap:12px';
-        grid.insertBefore(right, grid.firstChild); // Daily Sync → top
-      }
-    }
+    // Mobile: Daily Sync first, then Ad Table
+    // Desktop: Side by side grid
+    document.getElementById('section-fbtracker').innerHTML = mob
+      ? `<div style="width:100%">${rightPanel}</div><div style="margin-top:12px;width:100%">${leftPanel}</div>`
+      : `<div style="display:grid;grid-template-columns:1fr 0.55fr;gap:1rem">${leftPanel}${rightPanel}</div>`;
   }
 
   function renderAdTable() {
