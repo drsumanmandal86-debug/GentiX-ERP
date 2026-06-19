@@ -333,12 +333,15 @@ async function navigateTo(section) {
 function makeMobileReady() {
   if (!isMobile()) return;
 
-  // 1. Sidebar force off-screen
+  // 1. Sidebar — only hide if not currently open
   const sb = document.getElementById('sidebar');
   if (sb) {
-    sb.style.setProperty('left',     '-100%',  'important');
     sb.style.setProperty('position', 'fixed',  'important');
     sb.style.setProperty('width',    '260px',  'important');
+    sb.style.setProperty('z-index',  '1070',   'important');
+    if (!sb.classList.contains('mobile-open')) {
+      sb.style.setProperty('left', '-100%', 'important');
+    }
   }
 
   // 2. Main layout — full 100vw, no margin
@@ -445,8 +448,14 @@ function toggleSidebar(){
   if(isMobile()){
     const sb=document.getElementById('sidebar');
     const ov=document.getElementById('sidebarOverlay');
+    const willOpen=!sb.classList.contains('mobile-open');
     sb.classList.toggle('mobile-open');
     ov.classList.toggle('show');
+    // JS setProperty overrides makeMobileReady's inline !important
+    sb.style.setProperty('left', willOpen ? '0px' : '-100%', 'important');
+    sb.style.setProperty('position','fixed','important');
+    sb.style.setProperty('width','260px','important');
+    sb.style.setProperty('z-index','1070','important');
   } else {
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.getElementById('mainLayout').classList.toggle('expanded');
@@ -454,8 +463,11 @@ function toggleSidebar(){
 }
 
 function closeMobileSidebar(){
-  document.getElementById('sidebar').classList.remove('mobile-open');
+  const sb=document.getElementById('sidebar');
+  sb.classList.remove('mobile-open');
   document.getElementById('sidebarOverlay').classList.remove('show');
+  // Force hide via JS (same priority as makeMobileReady)
+  sb.style.setProperty('left','-100%','important');
 }
 </script>
 </body>
