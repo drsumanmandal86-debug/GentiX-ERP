@@ -61,8 +61,8 @@ const suppliersModule = (() => {
       <td style="color:#00838f;font-weight:700">${fmt(s.totalPurchase||s.totalPurchases||0)}</td>
       <td style="color:#e74c3c;font-weight:700">${fmt(s.currentDue||s.totalDue||0)}</td>
       <td>
-        <button class="action-btn" onclick="suppliersModule.showEdit('${s.id}')"><i class="bi bi-pencil-square"></i></button>
-        <button class="action-btn" onclick="suppliersModule.viewLedger('${s.id}')"><i class="bi bi-journal-text"></i></button>
+        <button class="action-btn" onclick="suppliersModule.showEdit('${s.id}')" title="Edit"><i class="bi bi-pencil-square"></i></button>
+        <button class="action-btn" onclick="suppliersModule.viewLedger('${s.id}')" title="Ledger History" style="color:#3949ab;border-color:#3949ab"><i class="bi bi-journal-bookmark-fill"></i> Ledger</button>
         <button class="action-btn" onclick="suppliersModule.del('${s.id}','${s.name.replace(/'/g,"\\'")}')"><i class="bi bi-trash3"></i></button>
       </td>
     </tr>`).join('')}
@@ -125,26 +125,118 @@ const suppliersModule = (() => {
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
+  // Supplier Ledger — Purchases + Payments + Running Balance + Pagination
+  let _slData=[], _slPage=1;
+  const SL_PER = 15;
+
   async function viewLedger(id) {
     const s = suppliers.find(x=>x.id===id);
     if (!s) return;
-    const snap = await window.db.collection('purchases').where('supplierId','==',id).orderBy('date','desc').get();
-    const purchases = snap.docs.map(d=>({id:d.id,...d.data()}));
-    openModal(`Supplier Ledger: ${s.name}`,`
-      <div style="display:flex;gap:20px;margin-bottom:14px;background:#f9fafb;padding:12px;border-radius:8px">
-        <div><span style="font-size:12px;color:#6b7280">Total Purchase</span><br><strong>${fmt(s.totalPurchase||0)}</strong></div>
-        <div><span style="font-size:12px;color:#6b7280">Current Due</span><br><strong style="color:#e74c3c">${fmt(s.currentDue||0)}</strong></div>
-      </div>
-      <table class="data-table">
-        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
-        <tbody>${purchases.map(p=>`<tr>
-          <td>${fmtDate(p.date)}</td><td>${p.product}</td><td>${p.qty}</td>
-          <td>${fmt(p.price)}</td><td style="color:#3949ab;font-weight:700">${fmt(p.total)}</td>
-        </tr>`).join('')}
-        ${!purchases.length?'<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">No transactions</td></tr>':''}
-        </tbody>
-      </table>`,
-      `<button class="btn btn-outline" onclick="closeModal()">Close</button>`,'modal-lg');
+
+    openModal(`📒 Supplier Ledger — ${s.name}`,
+      `<div style="text-align:center;padding:20px;color:#9ca3af">Loading…</div>`,
+      `<button class="btn btn-outline" onclick="closeModal()">Close</button>`,
+      'modal-xl');
+
+    try {
+      // Fetch purchases + cashbook payments in parallel
+      const [purSnap, cbSnap] = await Promise.all([
+        window.db.collection('purchases').where('supplierId','==',id).orderBy('date','asc').get(),
+        window.db.collection('cashBook').where('supplierId','==',id).orderBy('date','asc').get()
+      ]);
+
+      // Build combined ledger entries
+      const entries = [];
+      purSnap.docs.forEach(d => {
+        const p = d.data();
+        entries.push({ date: p.date||'', desc: `Purchase: ${p.product||''}  (${p.qty||0} × ${fmt(p.price||0)})`, debit: p.total||0, credit: 0, type:'purchase' });
+      });
+      cbSnap.docs.forEach(d => {
+        const c = d.data();
+        entries.push({ date: c.date||'', desc: `Payment: ${c.particulars||'Supplier Payment'}`, debit: 0, credit: c.cashOut||c.amount||0, type:'payment' });
+      });
+
+      // Sort by date ascending, calculate running balance
+      entries.sort((a,b) => a.date.localeCompare(b.date));
+      let bal = 0;
+      entries.forEach(e => { bal += e.debit - e.credit; e.balance = bal; });
+
+      // Summary
+      const totDebit  = entries.reduce((s,e)=>s+e.debit,0);
+      const totCredit = entries.reduce((s,e)=>s+e.credit,0);
+      const finalDue  = totDebit - totCredit;
+
+      _slData = [...entries].reverse(); // newest first for display
+      _slPage = 1;
+
+      const renderSlPage = (pg) => {
+        const start=(pg-1)*SL_PER, end=Math.min(start+SL_PER,_slData.length);
+        const page=_slData.slice(start,end);
+        const totalPg=Math.ceil(_slData.length/SL_PER);
+
+        return `
+          <!-- Summary bar -->
+          <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+            ${[[`Total Purchases`, fmt(totDebit),'#3949ab'],[`Total Paid`,fmt(totCredit),'#27ae60'],[`Current Due`,fmt(finalDue),finalDue>0?'#e74c3c':'#27ae60']].map(([l,v,c])=>`
+            <div style="flex:1;min-width:120px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid ${c}">
+              <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">${l}</small>
+              <strong style="font-size:16px;color:${c}">${v}</strong>
+            </div>`).join('')}
+          </div>
+
+          <!-- Table -->
+          <div style="overflow-x:auto">
+            <table class="data-table" style="min-width:600px">
+              <thead><tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th style="text-align:right;color:#e74c3c">Purchase (Dr)</th>
+                <th style="text-align:right;color:#27ae60">Payment (Cr)</th>
+                <th style="text-align:right">Balance Due</th>
+              </tr></thead>
+              <tbody>
+              ${page.map(e=>{
+                const bc = e.balance>0?'#e74c3c':e.balance<0?'#27ae60':'#9ca3af';
+                return`<tr style="${e.type==='payment'?'background:#f0fdf4':''}">
+                  <td style="white-space:nowrap;color:#6b7280">${fmtDate(e.date)}</td>
+                  <td style="font-size:13px">${e.desc}</td>
+                  <td style="text-align:right;color:#e74c3c;font-weight:600">${e.debit>0?fmt(e.debit):'—'}</td>
+                  <td style="text-align:right;color:#27ae60;font-weight:600">${e.credit>0?fmt(e.credit):'—'}</td>
+                  <td style="text-align:right;font-weight:700;color:${bc}">${fmt(Math.abs(e.balance))}${e.balance<0?' Cr':e.balance>0?' Dr':''}</td>
+                </tr>`;
+              }).join('')}
+              ${!page.length?'<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af">কোনো transaction নেই</td></tr>':''}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px">
+            <small style="color:#9ca3af">Showing ${start+1}–${end} of ${_slData.length} entries</small>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-outline btn-sm" ${pg<=1?'disabled':''} onclick="suppliersModule.slPage(${pg-1})">◀ Prev</button>
+              <span style="padding:5px 12px;background:#f3f4f6;border-radius:6px;font-size:12px;font-weight:600">Page ${pg} / ${totalPg||1}</span>
+              <button class="btn btn-outline btn-sm" ${pg>=totalPg?'disabled':''} onclick="suppliersModule.slPage(${pg+1})">Next ▶</button>
+            </div>
+          </div>`;
+      };
+
+      const body = document.getElementById('modalBody');
+      if (body) body.innerHTML = renderSlPage(1);
+
+      // Store render fn for pagination
+      suppliersModule._renderSlPage = renderSlPage;
+
+    } catch(e) {
+      const body=document.getElementById('modalBody');
+      if(body) body.innerHTML=`<div style="color:#e74c3c;padding:20px">Error: ${e.message}</div>`;
+    }
+  }
+
+  function slPage(pg) {
+    _slPage = pg;
+    const body=document.getElementById('modalBody');
+    if(body && suppliersModule._renderSlPage) body.innerHTML = suppliersModule._renderSlPage(pg);
   }
 
   async function del(id, name) {
@@ -156,5 +248,5 @@ const suppliersModule = (() => {
   function setEl(id,v) { const el=document.getElementById(id); if(el) el.innerHTML=v; }
   function search(v) { searchTerm=v; renderTable(); }
 
-  return { load, showAdd, showEdit, save, update, viewLedger, del, search };
+  return { load, showAdd, showEdit, save, update, viewLedger, slPage, del, search };
 })();
