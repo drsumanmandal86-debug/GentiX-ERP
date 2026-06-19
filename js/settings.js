@@ -52,6 +52,9 @@ const settingsModule = (() => {
 
   function renderLayout() {
     document.getElementById('section-settings').innerHTML = `
+    <!-- CSV Import Tool -->
+    <div id="csv-import-container" style="margin-bottom:14px"></div>
+
     <!-- Business Identity -->
     <div class="table-card mb-3" style="padding:18px">
       <h6 style="font-weight:700;margin-bottom:14px;font-size:14px"><i class="bi bi-person-badge" style="color:#27ae60"></i> Business Identity</h6>
@@ -243,6 +246,9 @@ const settingsModule = (() => {
     // Set account email
     const user = firebase.auth().currentUser;
     if(user) setVal('setEmail', user.email||'');
+
+    // Render CSV import tool
+    if (window.ImportTool) window.ImportTool.renderImportUI('csv-import-container');
   }
 
   function renderCategoryList() {
