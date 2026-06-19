@@ -164,10 +164,15 @@ const purchasesModule = (() => {
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // 2. Adjust Supplier totalPurchase + currentDue by difference
-      if(suppId&&totalDiff!==0){
+      // 2. Recalculate supplier totalPurchase from scratch (prevents negative from imported data)
+      //    and adjust currentDue by difference only
+      if(suppId){
+        // Sum all purchases for this supplier EXCEPT the one being edited
+        const allPurSnap=await window.db.collection('purchases').where('supplierId','==',suppId).get();
+        const sumOthers=allPurSnap.docs.filter(d=>d.id!==id).reduce((s,d)=>s+(d.data().total||0),0);
+        const newTotalPurchase=sumOthers+newTotal; // include new total of this purchase
         batch.update(window.db.collection('suppliers').doc(suppId),{
-          totalPurchase:firebase.firestore.FieldValue.increment(totalDiff),
+          totalPurchase:newTotalPurchase,
           currentDue:firebase.firestore.FieldValue.increment(totalDiff)
         });
       }
