@@ -84,6 +84,7 @@ const overviewModule = (() => {
     renderLayout();
     await fetchAll();
     renderChart(currentPeriod);
+    renderInvestmentProgress();
   }
 
   async function fetchAll(){
@@ -167,6 +168,9 @@ const overviewModule = (() => {
         </div>`).join('')}
       </div>
     </div>
+
+    <!-- Investment Recovery Progress -->
+    <div id="ov-invest-section" style="margin-bottom:14px"></div>
 
     <!-- Monthly breakdown -->
     <div class="table-card mb-3" style="overflow:hidden">
@@ -706,6 +710,105 @@ async function downloadImage(){
       win.document.write(html);win.document.close();
     }catch(e){toast('Report error: '+e.message,'error');}
     finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-file-earmark-bar-graph-fill me-2"></i>Generate CA Audit Report (PDF/Image)';}}
+  }
+
+  function renderInvestmentProgress() {
+    const el = document.getElementById('ov-invest-section');
+    if (!el) return;
+
+    // Total investment base from settings (default 6,02,500)
+    const baseInvest = window.appSettings?.totalInvestment || 602500;
+
+    // Loan Adjustment expenses = investment recovery amount
+    const recovered = allExpenses
+      .filter(e => e.category === 'Loan Adjustment' && (e.status === 'Paid' || !e.status))
+      .reduce((s, e) => s + (e.amount || 0), 0);
+
+    const remaining = Math.max(0, baseInvest - recovered);
+    const pct = baseInvest > 0 ? Math.min(100, (recovered / baseInvest) * 100) : 0;
+    const pctRound = pct.toFixed(1);
+    const isComplete = pct >= 100;
+
+    // Color based on progress
+    const barColor = pct < 30 ? '#ef4444' : pct < 60 ? '#f59e0b' : pct < 90 ? '#3b82f6' : '#22c55e';
+    const statusText = isComplete
+      ? '🎉 Investment সম্পূর্ণ উদ্ধার হয়েছে!'
+      : pct >= 75 ? '🔥 প্রায় শেষ! আর একটু বাকি।'
+      : pct >= 50 ? '✅ অর্ধেকের বেশি উদ্ধার হয়েছে।'
+      : pct >= 25 ? '📈 ভালো অগ্রগতি হচ্ছে।'
+      : '⏳ Investment উদ্ধার শুরু হয়েছে।';
+
+    el.innerHTML = `
+    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:16px;padding:22px;position:relative;overflow:hidden">
+      <!-- Background decoration -->
+      <div style="position:absolute;top:-30px;right:-30px;width:150px;height:150px;background:${barColor}10;border-radius:50%"></div>
+      <div style="position:absolute;bottom:-20px;left:-20px;width:100px;height:100px;background:${barColor}08;border-radius:50%"></div>
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <div style="background:${barColor}25;padding:8px;border-radius:8px">
+              <i class="bi bi-graph-up-arrow" style="color:${barColor};font-size:18px"></i>
+            </div>
+            <h5 style="color:#fff;font-weight:800;margin:0">Investment Recovery Tracker</h5>
+          </div>
+          <p style="color:#475569;font-size:12px;margin:0">Loan Adjustment expenses → total investment recovery progress</p>
+        </div>
+        <div style="background:${barColor}20;border:1px solid ${barColor}40;border-radius:10px;padding:8px 16px;text-align:center">
+          <div style="color:${barColor};font-size:26px;font-weight:800">${pctRound}%</div>
+          <div style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase">Recovered</div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <small style="color:#94a3b8;font-weight:600;font-size:11px">৳0</small>
+          <small style="color:#94a3b8;font-weight:600;font-size:11px">Total Investment: ${fmt(baseInvest)}</small>
+        </div>
+        <div style="height:14px;background:rgba(255,255,255,.06);border-radius:50px;overflow:hidden;position:relative">
+          <div id="invest-bar" style="height:100%;width:0%;background:linear-gradient(90deg,${barColor}99,${barColor});border-radius:50px;transition:width 1.5s cubic-bezier(.25,.8,.25,1);position:relative">
+            ${pct > 10 ? `<div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:800;color:#fff">${pctRound}%</div>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <small style="color:${barColor};font-size:10px;font-weight:700">Recovered: ${fmt(recovered)}</small>
+          <small style="color:#ef4444;font-size:10px;font-weight:700">Remaining: ${fmt(remaining)}</small>
+        </div>
+      </div>
+
+      <!-- 3 KPI cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;text-align:center">
+          <div style="color:#64748b;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Total Investment</div>
+          <div style="color:#fff;font-size:16px;font-weight:800">${fmt(baseInvest)}</div>
+          <div style="color:#475569;font-size:10px">মোট বিনিয়োগ</div>
+        </div>
+        <div style="background:${barColor}12;border:1px solid ${barColor}30;border-radius:10px;padding:12px;text-align:center">
+          <div style="color:${barColor};font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Recovered</div>
+          <div style="color:${barColor};font-size:16px;font-weight:800">${fmt(recovered)}</div>
+          <div style="color:#475569;font-size:10px">উদ্ধার হয়েছে</div>
+        </div>
+        <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;text-align:center">
+          <div style="color:#ef4444;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Remaining</div>
+          <div style="color:#ef4444;font-size:16px;font-weight:800">${fmt(remaining)}</div>
+          <div style="color:#475569;font-size:10px">এখনও বাকি</div>
+        </div>
+      </div>
+
+      <!-- Status message -->
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#94a3b8">
+        ${statusText}
+        ${!isComplete ? `<span style="color:#64748b"> — আরও ${fmt(remaining)} recover করতে হবে।</span>` : ''}
+      </div>
+    </div>`;
+
+    // Animate progress bar after render
+    setTimeout(() => {
+      const bar = document.getElementById('invest-bar');
+      if (bar) bar.style.width = pct + '%';
+    }, 100);
   }
 
   return{load,setPeriod,runComparison,toggleCustom,generateAuditReport};
