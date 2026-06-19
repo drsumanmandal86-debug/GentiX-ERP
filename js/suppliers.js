@@ -139,10 +139,10 @@ const suppliersModule = (() => {
       'modal-xl');
 
     try {
-      // Fetch purchases + cashbook payments in parallel
+      // Fetch without orderBy to avoid composite index requirement — sort in JS
       const [purSnap, cbSnap] = await Promise.all([
-        window.db.collection('purchases').where('supplierId','==',id).orderBy('date','asc').get(),
-        window.db.collection('cashBook').where('supplierId','==',id).orderBy('date','asc').get()
+        window.db.collection('purchases').where('supplierId','==',id).get(),
+        window.db.collection('cashBook').where('supplierId','==',id).get()
       ]);
 
       // Build combined ledger entries
