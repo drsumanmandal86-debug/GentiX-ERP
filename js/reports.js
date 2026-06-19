@@ -237,7 +237,7 @@ const reportsModule = (() => {
       </div>
       <div style="overflow-x:auto">
         <table class="data-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th style="text-align:right">Amount</th></tr></thead>
-        <tbody id="reportTableBody"></tbody></table>
+        <tbody id="txLogBody"></tbody></table>
       </div>
       <div style="padding:10px 16px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
         <small id="logPageInfo" style="color:#9ca3af"></small>
@@ -505,7 +505,7 @@ const reportsModule = (() => {
   function renderLogPage(){
     const start=(_logPage-1)*LOG_PER,end=Math.min(start+LOG_PER,_logData.length);
     const page=_logData.slice(start,end);
-    const tb=document.getElementById('reportTableBody');
+    const tb=document.getElementById('txLogBody');
     if(tb)tb.innerHTML=page.map(r=>`<tr>
       <td style="padding-left:14px;color:#6b7280;font-weight:700">${fmtDate(r.date)}</td>
       <td style="font-weight:600">${r.desc}</td>
