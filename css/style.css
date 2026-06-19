@@ -433,17 +433,20 @@ textarea.form-control{resize:vertical;min-height:70px}
   gap:1rem;
 }
 
-/* Desktop: Ledger grids */
-#ledger-top-row{
-  display:grid;
-  grid-template-columns:1fr 2fr;
-  gap:1rem;
-  margin-bottom:1rem;
-}
-#ledger-main-grid{
-  display:grid;
-  grid-template-columns:1fr 2fr;
-  gap:1rem;
+/* Ledger — mobile-first: block by default */
+#ledger-top-row{display:block;margin-bottom:12px}
+#ledger-top-row > *{margin-bottom:10px;display:block}
+#ledger-main-grid{display:block}
+#ledger-main-grid > *{margin-bottom:12px;width:100%}
+#ledger-form-col{position:static!important}
+
+/* Desktop only: 2-column grid */
+@media(min-width:769px){
+  #ledger-top-row{display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem}
+  #ledger-top-row > *{margin-bottom:0}
+  #ledger-main-grid{display:grid;grid-template-columns:1fr 2fr;gap:1rem}
+  #ledger-main-grid > *{margin-bottom:0}
+  #ledger-form-col{position:sticky!important;top:20px!important}
 }
 
 @media(max-width:768px){

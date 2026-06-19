@@ -55,12 +55,30 @@ const ledgerModule = (() => {
   }
 
   function renderLayout() {
-    const mob = window.innerWidth <= 768;
+    // CSS handles layout: mobile=block (single col), desktop=grid (2 col)
+    // See #ledger-top-row and #ledger-main-grid in style.css
+    document.getElementById('section-ledger').innerHTML = `
 
-    // ── Reusable HTML blocks ──
-    const formHTML = `
-      <div class="table-card" style="padding:${mob?'16px':'20px'};${mob?'':'position:sticky;top:20px'}">
-        <h5 style="font-weight:700;color:#212529;margin-bottom:14px">
+    <!-- TOP: Balance + Search (CSS grid on desktop, block on mobile) -->
+    <div id="ledger-top-row">
+      <div class="table-card" style="padding:16px;text-align:center">
+        <small style="color:#6b7280;text-transform:uppercase;font-weight:700;font-size:11px">Overall Net Balance</small>
+        <div id="topNetBalance" style="font-size:26px;font-weight:800;color:#3949ab;margin:6px 0">৳ 0</div>
+        <small id="overallStatus" style="font-weight:700"></small>
+      </div>
+      <div class="table-card" style="padding:14px">
+        <input type="text" id="searchPerson" class="form-control" style="width:100%"
+          placeholder="🔍 Search Person Name or Note..." oninput="ledgerModule.filterHistory()">
+        <span style="color:#6b7280;font-size:12px;display:block;margin-top:6px">Filtering: <strong id="filterLabel">All Entries</strong></span>
+      </div>
+    </div>
+
+    <!-- MAIN: Form + Tables (CSS grid on desktop, block on mobile — Form comes first) -->
+    <div id="ledger-main-grid">
+
+      <!-- Form — appears first in DOM = shows first on mobile -->
+      <div id="ledger-form-col" class="table-card" style="padding:18px">
+        <h5 style="font-weight:700;color:#212529;margin-bottom:16px">
           <i class="bi bi-plus-circle-fill" style="color:#3949ab"></i> New Transaction
         </h5>
         <div style="position:relative;margin-bottom:12px">
@@ -70,39 +88,38 @@ const ledgerModule = (() => {
               <i class="bi bi-person-plus"></i> Manage
             </button>
           </div>
-          <input type="text" id="pName" class="form-control" placeholder="Click to select or type..."
-            autocomplete="off" onclick="ledgerModule.toggleDropdown()" oninput="ledgerModule.filterNames()"
-            style="font-size:${mob?'16px':'13px'};height:${mob?'46px':'auto'}">
-          <div id="nameDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;background:#fff;border:1px solid #ced4da;border-radius:0 0 10px 10px;max-height:220px;overflow-y:auto;box-shadow:0 4px 6px rgba(0,0,0,.1)">
-            ${PERSON_NAMES.map(nm=>`<div onclick="ledgerModule.selectName('${nm}')" style="padding:${mob?'14px':'10px'} 14px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:${mob?'15px':'13.5px'}">${nm}</div>`).join('')}
+          <input type="text" id="pName" class="form-control" placeholder="Tap to select or type..."
+            autocomplete="off" onclick="ledgerModule.toggleDropdown()" oninput="ledgerModule.filterNames()">
+          <div id="nameDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;background:#fff;border:1px solid #ced4da;border-radius:0 0 10px 10px;max-height:200px;overflow-y:auto;box-shadow:0 4px 6px rgba(0,0,0,.1)">
+            ${PERSON_NAMES.map(nm=>`<div onclick="ledgerModule.selectName('${nm}')" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:14px">${nm}</div>`).join('')}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
           <div class="form-group">
             <label class="form-label" style="color:#27ae60">I Paid (Cash In)</label>
-            <input type="number" id="pPaid" class="form-control" placeholder="0" style="border-color:#27ae60;height:${mob?'46px':'auto'};font-size:${mob?'16px':'13px'}">
+            <input type="number" id="pPaid" class="form-control" placeholder="0" style="border-color:#27ae60">
           </div>
           <div class="form-group">
             <label class="form-label" style="color:#e74c3c">He Spent (Cash Out)</label>
-            <input type="number" id="pSpent" class="form-control" placeholder="0" style="border-color:#e74c3c;height:${mob?'46px':'auto'};font-size:${mob?'16px':'13px'}">
+            <input type="number" id="pSpent" class="form-control" placeholder="0" style="border-color:#e74c3c">
           </div>
         </div>
         <div class="form-group" style="margin-bottom:14px">
           <label class="form-label">Note / Reason</label>
-          <input type="text" id="pNote" class="form-control" placeholder="What is this for?" style="height:${mob?'44px':'auto'};font-size:${mob?'15px':'13px'}">
+          <input type="text" id="pNote" class="form-control" placeholder="What is this for?">
         </div>
         <button id="ledgerSaveBtn" onclick="ledgerModule.saveEntry()" class="btn btn-primary"
-          style="width:100%;padding:${mob?'14px':'11px'};font-size:${mob?'15px':'14px'};justify-content:center">
+          style="width:100%;padding:12px;font-size:14px;justify-content:center">
           <i class="bi bi-save"></i> Save Entry
         </button>
-      </div>`;
+      </div>
 
-    const tablesHTML = `
-      <div>
+      <!-- Tables — comes after form in DOM -->
+      <div id="ledger-table-col">
         <div class="table-card" style="margin-bottom:12px;overflow:hidden">
           <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px">Person-wise Net Balance</div>
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-            <table class="data-table" style="min-width:380px"><thead><tr>
+            <table class="data-table" style="min-width:360px"><thead><tr>
               <th>Name</th><th>Total Paid</th><th>Total Spent</th><th>Net Balance</th>
             </tr></thead><tbody id="summaryTableBody"></tbody></table>
           </div>
@@ -113,7 +130,7 @@ const ledgerModule = (() => {
             <button class="btn btn-outline btn-sm" onclick="ledgerModule.load()"><i class="bi bi-arrow-clockwise"></i></button>
           </div>
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-            <table class="data-table" style="min-width:520px"><thead><tr>
+            <table class="data-table" style="min-width:500px"><thead><tr>
               <th>Date</th><th>Person &amp; Note</th>
               <th style="color:#27ae60">Paid (+)</th><th style="color:#e74c3c">Spent (-)</th>
               <th>Balance</th><th>Status</th>
@@ -125,45 +142,8 @@ const ledgerModule = (() => {
             <button class="btn btn-outline btn-sm" id="lNextBtn" onclick="ledgerModule.changePage(1)">▶</button>
           </div>
         </div>
-      </div>`;
-
-    if (mob) {
-      // ── MOBILE: single column, Form first ──
-      document.getElementById('section-ledger').innerHTML = `
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <div class="table-card" style="flex:1;padding:14px;text-align:center">
-            <small style="color:#6b7280;text-transform:uppercase;font-weight:700;font-size:10px">Net Balance</small>
-            <div id="topNetBalance" style="font-size:24px;font-weight:800;color:#3949ab;margin:4px 0">৳ 0</div>
-            <small id="overallStatus" style="font-weight:700"></small>
-          </div>
-        </div>
-        <div class="table-card" style="padding:10px 12px;margin-bottom:12px">
-          <input type="text" id="searchPerson" style="width:100%;border:1px solid #ced4da;border-radius:7px;padding:9px 12px;font-size:14px;outline:none"
-            placeholder="🔍 Search Person Name or Note..." oninput="ledgerModule.filterHistory()">
-          <span style="color:#6b7280;font-size:11px;display:block;margin-top:4px">Filtering: <strong id="filterLabel">All Entries</strong></span>
-        </div>
-        <div style="margin-bottom:12px">${formHTML}</div>
-        ${tablesHTML}`;
-    } else {
-      // ── DESKTOP: 2-column grid ──
-      document.getElementById('section-ledger').innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem">
-          <div class="table-card" style="padding:20px;text-align:center">
-            <small style="color:#6b7280;text-transform:uppercase;font-weight:700;font-size:11px">Overall Net Balance</small>
-            <div id="topNetBalance" style="font-size:28px;font-weight:800;color:#3949ab;margin:6px 0">৳ 0</div>
-            <small id="overallStatus" style="font-weight:700"></small>
-          </div>
-          <div class="table-card" style="padding:16px;display:flex;align-items:center;gap:16px">
-            <input type="text" id="searchPerson" class="search-box" style="width:280px"
-              placeholder="🔍 Search Person Name or Note..." oninput="ledgerModule.filterHistory()">
-            <span style="color:#6b7280;font-size:13px">Filtering: <strong id="filterLabel">All Entries</strong></span>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem">
-          ${formHTML}
-          ${tablesHTML}
-        </div>`;
-    }
+      </div>
+    </div>`;
 
     // Close dropdown on outside click
     document.addEventListener('click', e => {
