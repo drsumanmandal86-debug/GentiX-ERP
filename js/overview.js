@@ -161,7 +161,7 @@ const overviewModule = (() => {
 
       <!-- Legend -->
       <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;justify-content:center">
-        ${[['#22c55e','Monthly Revenue'],['#ef4444','Total Cost'],['#3b82f6','Net Profit'],['#f59e0b','ROI % →']].map(([c,l])=>`
+        ${[['#22c55e','Revenue'],['#ef4444','Total Cost (COGS+Exp)'],['#3b82f6','Net Profit Trend'],['#f59e0b','ROI % →']].map(([c,l])=>`
         <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b;font-weight:600">
           <div style="width:24px;height:3px;background:${c};border-radius:2px"></div>${l}
         </div>`).join('')}
@@ -258,18 +258,29 @@ const overviewModule = (() => {
     const{s:fromDs,e:toDs}=periodToRange(period);
     const costMap={};allProducts.forEach(p=>{if(p.name)costMap[p.name.trim().toLowerCase()]=p.buyPrice||0;});
 
+    // Daily view for single-month/week periods; Monthly view for multi-month periods
+    const DAILY_PERIODS=['today','yesterday','thisWeek','lastWeek','thisMonth','lastMonth'];
+    const isDaily=DAILY_PERIODS.includes(period);
+    const keyFn=ds=>isDaily?ds:ds.substring(0,7);
+
     const monthData={};
     const add=key=>{if(!monthData[key])monthData[key]={rev:0,cogs:0,opex:0,adCost:0,txns:0};};
 
+    // Pre-fill every day in range for daily view (shows 0 on days with no data)
+    if(isDaily){
+      const cur=new Date(fromDs+'T00:00:00'),end=new Date(toDs+'T00:00:00');
+      while(cur<=end){add(localDate(cur));cur.setDate(cur.getDate()+1);}
+    }
+
     allSales.filter(s=>{const ds=parseDs(s.date);return ds>=fromDs&&ds<=toDs&&s.status!=='Returned';}).forEach(s=>{
-      const key=(parseDs(s.date)||'').substring(0,7);if(!key)return;add(key);
+      const ds=parseDs(s.date);const key=keyFn(ds);if(!key)return;add(key);
       monthData[key].rev+=s.total||0;
       const bp=costMap[(s.product||'').trim().toLowerCase()]||s.buyPrice||0;
       monthData[key].cogs+=(s.qty||0)*bp;monthData[key].txns++;
     });
 
     allExpenses.filter(e=>{const ds=parseDs(e.date);return ds>=fromDs&&ds<=toDs&&(e.status==='Paid'||e.category==='Meta/Facebook Ads');}).forEach(e=>{
-      const key=(parseDs(e.date)||'').substring(0,7);if(!key)return;add(key);
+      const ds=parseDs(e.date);const key=keyFn(ds);if(!key)return;add(key);
       monthData[key].opex+=e.amount||0;
       if((e.category||'').match(/facebook|meta/i))monthData[key].adCost+=e.amount||0;
     });
@@ -298,7 +309,12 @@ const overviewModule = (() => {
     const ctx=document.getElementById('ovChart')?.getContext('2d');
     if(!ctx||!months.length)return;
 
-    const labels=months.map(m=>{const[y,mo]=m.split('-');return(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1])+` '${y.substring(2)}`;});
+    // Label format: daily = "19 Jun", monthly = "Jun '26"
+    const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labels=months.map(m=>{
+      if(isDaily){const[y,mo,dy]=m.split('-');return`${parseInt(dy)} ${MN[parseInt(mo)-1]}`;}
+      const[y,mo]=m.split('-');return`${MN[parseInt(mo)-1]} '${y.substring(2)}`;
+    });
     const revD=months.map(m=>monthData[m].rev);
     const costD=months.map(m=>monthData[m].cogs+monthData[m].opex);
     const netD=months.map(m=>monthData[m].rev-monthData[m].cogs-monthData[m].opex);
@@ -332,23 +348,35 @@ const overviewModule = (() => {
       }
     });
 
-    // Monthly table
+    // Table header label update
+    const tblHeader=document.querySelector('#ov-monthly-table')?.closest('.table-card')?.querySelector('div');
+    if(tblHeader) tblHeader.innerHTML=`<i class="bi bi-table me-2" style="color:#3949ab"></i>${isDaily?'Daily Breakdown':'Monthly Breakdown'}`;
+    const thPeriod=document.querySelector('#ov-monthly-table')?.closest('table')?.querySelector('th');
+    if(thPeriod) thPeriod.textContent=isDaily?'Date':'Month';
+
+    // Breakdown table rows
     const tb=document.getElementById('ov-monthly-table');
     if(tb){
-      tb.innerHTML=[...months].reverse().map(m=>{
+      const rowKeys=isDaily?[...months]:[...months].reverse(); // daily: asc (1→31), monthly: desc
+      tb.innerHTML=rowKeys.filter(m=>{ // hide zero-rows for daily if nothing happened
+        const d=monthData[m];return !isDaily||(d.rev>0||d.cogs>0||d.opex>0||d.txns>0);
+      }).map(m=>{
         const d=monthData[m];const net=d.rev-d.cogs-d.opex;
         const mg=d.rev>0?(net/d.rev*100).toFixed(1):'0.0';const nc2=net>=0?'#27ae60':'#e74c3c';
-        const[y,mo]=m.split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1];
-        return`<tr>
-          <td style="font-weight:700;padding-left:14px">${mn} ${y}</td>
-          <td style="text-align:right;font-weight:700;color:#27ae60">${fmt(d.rev)}</td>
-          <td style="text-align:right;color:#6b7280">${fmt(d.cogs)}</td>
-          <td style="text-align:right;color:#e67e22">${fmt(d.opex)}</td>
-          <td style="text-align:right;color:#e74c3c">${fmt(d.adCost)}</td>
-          <td style="text-align:right;font-weight:800;color:${nc2}">${fmt(net)}</td>
-          <td style="text-align:right;padding-right:14px"><span style="background:${nc2}18;color:${nc2};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${mg}%</span></td>
+        let label;
+        if(isDaily){const[y,mo,dy]=m.split('-');label=`${parseInt(dy)} ${MN[parseInt(mo)-1]} ${y}`;}
+        else{const[y,mo]=m.split('-');label=`${MN[parseInt(mo)-1]} ${y}`;}
+        const rowBg=d.rev===0?'background:#fafafa':'';
+        return`<tr style="${rowBg}">
+          <td style="font-weight:700;padding-left:14px">${label}${d.txns>0?`<small style="color:#9ca3af;font-size:10px;margin-left:6px">${d.txns} txns</small>`:''}</td>
+          <td style="text-align:right;font-weight:700;color:#27ae60">${d.rev>0?fmt(d.rev):'—'}</td>
+          <td style="text-align:right;color:#6b7280">${d.cogs>0?fmt(d.cogs):'—'}</td>
+          <td style="text-align:right;color:#e67e22">${d.opex>0?fmt(d.opex):'—'}</td>
+          <td style="text-align:right;color:#e74c3c">${d.adCost>0?fmt(d.adCost):'—'}</td>
+          <td style="text-align:right;font-weight:800;color:${nc2}">${d.rev>0||d.opex>0?fmt(net):'—'}</td>
+          <td style="text-align:right;padding-right:14px">${d.rev>0?`<span style="background:${nc2}18;color:${nc2};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${mg}%</span>`:'—'}</td>
         </tr>`;
-      }).join('');
+      }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">No data for selected period</td></tr>';
     }
   }
 
