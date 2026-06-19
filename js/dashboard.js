@@ -84,9 +84,23 @@ const dashModule = (() => {
         : expAllDocs.filter(e => e.status === 'Paid' || e.category === 'Meta/Facebook Ads');
 
       // ── Core Metrics ──
-      const activeSales   = salesDocs.filter(s => s.status !== 'Returned' && s.status !== 'Adjustment');
-      const totalSales    = activeSales.reduce((s,d) => s+(d.total||0), 0);
-      const totalCOGS     = activeSales.reduce((s,d) => s+(d.cogs||0), 0);
+      // Match original GAS logic: exclude only "Returned", include "Adjustment" (negative amounts reduce total)
+      const activeSales = salesDocs.filter(s => s.status !== 'Returned');
+      const totalSales  = activeSales.reduce((s,d) => s+(d.total||0), 0);
+
+      // COGS: calculate dynamically from product buy prices (matches GAS costMap approach)
+      // This handles imported sales that have cogs=0
+      const costMap = {};
+      productDocs.forEach(p => {
+        if (p.name) costMap[p.name.trim().toLowerCase()] = p.buyPrice || 0;
+      });
+      const totalCOGS = activeSales
+        .filter(s => s.status !== 'Adjustment') // adjustments don't have COGS
+        .reduce((s,d) => {
+          const buyPrice = costMap[(d.product||'').trim().toLowerCase()] || d.buyPrice || 0;
+          return s + (d.qty||0) * buyPrice;
+        }, 0);
+
       const totalExpenses = expDocs.reduce((s,e) => s+(e.amount||0), 0);
       const netProfit     = totalSales - totalCOGS - totalExpenses;
 

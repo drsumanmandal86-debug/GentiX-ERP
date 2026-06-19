@@ -213,8 +213,18 @@ const reportsModule = (() => {
         return ds>=fds && ds<=tds && (e.status==='Paid' || e.category==='Meta/Facebook Ads');
       });
 
-      const totalSales    = sales.filter(s=>s.status!=='Returned').reduce((s,d)=>s+(d.total||0),0);
-      const totalCOGS     = sales.filter(s=>s.status!=='Returned').reduce((s,d)=>s+(d.cogs||0),0);
+      // Match GAS: exclude only Returned (Adjustments included with negative totals)
+      const totalSales = sales.filter(s=>s.status!=='Returned').reduce((s,d)=>s+(d.total||0),0);
+
+      // COGS: calculate dynamically from product costMap (handles imported sales with cogs=0)
+      const costMap = {};
+      prods.forEach(p => { if(p.name) costMap[p.name.trim().toLowerCase()] = p.buyPrice||0; });
+      const totalCOGS = sales
+        .filter(s=>s.status!=='Returned'&&s.status!=='Adjustment')
+        .reduce((s,d)=>{
+          const bp = costMap[(d.product||'').trim().toLowerCase()] || d.buyPrice || 0;
+          return s + (d.qty||0) * bp;
+        }, 0);
       const totalExpenses = expDocs.reduce((s,d)=>s+(d.amount||0),0);
       const netProfit     = totalSales - totalCOGS - totalExpenses;
       const opening       = window.appSettings?.openingCash || 0;
