@@ -290,6 +290,8 @@ auth.onAuthStateChanged(async user => {
   } catch(e) {}
 
   await navigateTo('dashboard');
+  // Initial mobile fix after first load
+  if (isMobile()) setTimeout(makeMobileReady, 100);
 });
 
 function headerResetGuard() {
@@ -319,7 +321,115 @@ async function navigateTo(section) {
     await MODULES[section].load();
     if (section !== 'dashboard') loadedSections.add(section);
   }
+  // Apply mobile layout after every navigation
+  if (isMobile()) requestAnimationFrame(makeMobileReady);
 }
+
+// ═══════════════════════════════════════════════
+//  MOBILE LAYOUT ENGINE
+//  সব module-এর inline grid → single column (100% width)
+// ═══════════════════════════════════════════════
+function makeMobileReady() {
+  if (!isMobile()) return;
+
+  // 1. Sidebar force off-screen
+  const sb = document.getElementById('sidebar');
+  if (sb) {
+    sb.style.setProperty('left',     '-100%',  'important');
+    sb.style.setProperty('position', 'fixed',  'important');
+    sb.style.setProperty('width',    '260px',  'important');
+  }
+
+  // 2. Main layout — full 100vw, no margin
+  const ml = document.getElementById('mainLayout');
+  if (ml) {
+    ml.style.setProperty('margin-left', '0',     'important');
+    ml.style.setProperty('width',       '100%',  'important');
+  }
+
+  // 3. Convert ALL inline grid-template-columns → single block column
+  document.querySelectorAll('[style]').forEach(el => {
+    const s = el.getAttribute('style') || '';
+    const isGrid = s.includes('grid-template-columns') ||
+                   s.includes('display:grid') ||
+                   s.includes('display: grid');
+    if (!isGrid) return;
+
+    el.style.setProperty('display',               'block',  'important');
+    el.style.setProperty('grid-template-columns', 'none',   'important');
+    el.style.setProperty('width',                 '100%',   'important');
+
+    // Direct children → full width, spaced out
+    Array.from(el.children).forEach(c => {
+      c.style.width        = '100%';
+      c.style.marginBottom = '12px';
+      c.style.boxSizing    = 'border-box';
+    });
+  });
+
+  // 4. CSS-class based grids (fb-main-grid, ledger-main-grid etc.)
+  ['fb-main-grid','ledger-top-row','ledger-main-grid'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.setProperty('display',               'block', 'important');
+    el.style.setProperty('grid-template-columns', 'none',  'important');
+    el.style.setProperty('width',                 '100%',  'important');
+    Array.from(el.children).forEach(c => {
+      c.style.width = '100%'; c.style.marginBottom = '12px';
+    });
+  });
+
+  // 5. All form-grid → single column
+  document.querySelectorAll('.form-grid').forEach(el => {
+    el.style.setProperty('grid-template-columns', '1fr', 'important');
+  });
+
+  // 6. Tables — horizontal scroll wrapper
+  document.querySelectorAll('.data-table').forEach(t => {
+    const p = t.parentElement;
+    if (p) { p.style.overflowX = 'auto'; p.style.webkitOverflowScrolling = 'touch'; }
+    t.style.minWidth = '480px';
+  });
+
+  // 7. FB Tracker — Daily Cost Sync সবার উপরে
+  const fbGrid  = document.getElementById('fb-main-grid');
+  const fbRight = document.getElementById('fb-right-col');
+  if (fbGrid && fbRight && fbRight !== fbGrid.firstElementChild) {
+    fbGrid.insertBefore(fbRight, fbGrid.firstChild);
+    fbRight.style.width        = '100%';
+    fbRight.style.marginBottom = '12px';
+  }
+
+  // 8. Ledger — Form সবার উপরে, sticky বাদ
+  const ldGrid = document.getElementById('ledger-main-grid');
+  const ldForm = document.getElementById('ledger-form-col');
+  if (ldGrid && ldForm) {
+    ldForm.style.setProperty('position', 'static', 'important');
+    ldForm.style.width = '100%';
+    if (ldForm !== ldGrid.firstElementChild) {
+      ldGrid.insertBefore(ldForm, ldGrid.firstChild);
+    }
+  }
+
+  // 9. KPI grid — 2 column
+  document.querySelectorAll('.kpi-grid').forEach(el => {
+    el.style.setProperty('grid-template-columns', 'repeat(2,1fr)', 'important');
+    el.style.gap = '10px';
+  });
+
+  // 10. fb-kpi-grid — 2 column
+  document.querySelectorAll('.fb-kpi-grid').forEach(el => {
+    el.style.setProperty('grid-template-columns', 'repeat(2,1fr)', 'important');
+  });
+
+  // 11. Compact padding on all table-cards
+  document.querySelectorAll('.main-content [style*="padding:20px"], .main-content [style*="padding: 20px"]').forEach(el => {
+    el.style.padding = '14px';
+  });
+}
+
+// Run on resize too
+window.addEventListener('resize', () => { if (isMobile()) makeMobileReady(); });
 
 document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', () => {
