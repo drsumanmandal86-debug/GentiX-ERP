@@ -246,7 +246,180 @@ textarea.form-control{resize:vertical;min-height:70px}
 ::-webkit-scrollbar-thumb:hover{background:#adb5bd}
 
 /* ===================== RESPONSIVE ===================== */
-@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.fb-kpi-grid{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:900px){.bottom-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.sidebar{left:-100%;width:280px}.sidebar.active{left:0}.main-layout{margin-left:0!important}.sidebar-toggle{background:#fff}}
-@media print{.sidebar,.top-header,.btn,.action-btn,.table-toolbar{display:none!important}.main-layout{margin-left:0}.main-content{padding:0}}
+
+/* ── Tablet (≤1200px) ── */
+@media(max-width:1200px){
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+  .fb-kpi-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+/* ── Small tablet (≤900px) ── */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .bottom-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .fb-kpi-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── Mobile (≤768px) ── */
+@media(max-width:768px){
+  body{overflow:auto}
+  .hide-mobile{display:none!important}
+
+  /* Sidebar — mobile drawer */
+  .sidebar{
+    position:fixed;left:-100%;top:0;width:260px;
+    z-index:1070;transition:left .3s ease;
+  }
+  .sidebar.mobile-open{left:0}
+  .sidebar.collapsed{width:260px} /* keep full width on mobile */
+
+  /* Sidebar overlay backdrop */
+  .sidebar-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.5);z-index:1065;
+  }
+  .sidebar-overlay.show{display:block}
+
+  /* Main layout full width */
+  .main-layout{margin-left:0!important}
+  .main-content{padding:12px 14px}
+
+  /* Header compact */
+  .top-header{padding:10px 14px;height:52px}
+  .header-title{font-size:15px}
+  .user-badge{padding:5px 10px;font-size:12px}
+  #userDisplayName{display:none} /* hide name, show avatar only */
+  .header-right{gap:6px}
+  .header-right .btn-sm span{display:none} /* hide Reset text */
+
+  /* KPI grid — 2 cols on mobile */
+  .kpi-grid{
+    grid-template-columns:repeat(2,1fr);
+    gap:.8rem;margin-bottom:.8rem
+  }
+  .kpi-card{min-height:100px;padding:14px}
+  .kpi-value{font-size:1.2rem}
+  .kpi-label{font-size:.72rem}
+
+  /* Dashboard header — stack */
+  .dash-header{flex-direction:column;align-items:flex-start;gap:.6rem}
+  .time-filters{
+    overflow-x:auto;width:100%;
+    border-radius:10px;padding:4px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;flex-wrap:nowrap
+  }
+  .time-filters::-webkit-scrollbar{display:none}
+  .time-filter{white-space:nowrap;flex-shrink:0;font-size:.75rem;padding:5px 12px}
+
+  /* Bottom info grid */
+  .bottom-grid{grid-template-columns:1fr;gap:.8rem}
+
+  /* Stats row */
+  .stats-row{grid-template-columns:1fr 1fr;gap:8px}
+
+  /* Tables — horizontal scroll */
+  .table-card{border-radius:8px}
+  div[style*="overflow-x:auto"],
+  .table-card > div{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  .data-table{min-width:520px}
+  .data-table th,.data-table td{padding:8px 10px;font-size:.8rem}
+
+  /* Split layouts — stack vertically */
+  div[style*="grid-template-columns:1fr 1.5fr"],
+  div[style*="grid-template-columns:1fr 1.6fr"],
+  div[style*="grid-template-columns:1.4fr 1fr"],
+  div[style*="grid-template-columns:1fr 1fr"],
+  div[style*="grid-template-columns:1fr 1.2fr"],
+  div[style*="grid-template-columns:2fr 1fr"]{
+    display:block!important
+  }
+  div[style*="grid-template-columns:1fr 1.5fr"] > *,
+  div[style*="grid-template-columns:1fr 1.6fr"] > *,
+  div[style*="grid-template-columns:1.4fr 1fr"] > *,
+  div[style*="grid-template-columns:1fr 1fr"] > *,
+  div[style*="grid-template-columns:1fr 1.2fr"] > *,
+  div[style*="grid-template-columns:2fr 1fr"] > *{
+    margin-bottom:14px
+  }
+
+  /* Form grid — single col */
+  .form-grid{grid-template-columns:1fr!important}
+
+  /* Modal — full width */
+  .modal{width:95vw!important;max-height:92vh;border-radius:10px}
+  .modal-body{padding:14px}
+  .modal-footer{flex-wrap:wrap;gap:6px}
+  .modal-footer .btn{flex:1;justify-content:center}
+
+  /* Reports filter */
+  div[style*="grid-template-columns:1fr 1fr auto"]{
+    display:block!important
+  }
+  div[style*="grid-template-columns:1fr 1fr auto"] > *{
+    margin-bottom:8px
+  }
+
+  /* Overview KPI row */
+  #ov-kpi-row{flex-wrap:wrap}
+  #ov-kpi-row .ov-kpi{min-width:calc(50% - 6px)!important;flex:unset!important}
+
+  /* Overview chart */
+  div[style*="height:320px"]{height:240px!important}
+  div[style*="height:340px"]{height:240px!important}
+
+  /* Comparison grid */
+  div[style*="grid-template-columns:1fr auto 1fr"]{
+    display:block!important
+  }
+  div[style*="grid-template-columns:1fr auto 1fr"] > *{
+    margin-bottom:10px
+  }
+
+  /* FB KPI */
+  .fb-kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+
+  /* Ledger balance */
+  .ledger-balance{flex-direction:column;gap:10px;text-align:center}
+  .ledger-balance .amount{font-size:22px}
+
+  /* Cash book balance bar */
+  .cb-balance-bar{flex-wrap:wrap;gap:12px}
+  .cb-divider{display:none}
+
+  /* Settings tabs */
+  .settings-tabs{flex-wrap:wrap;width:100%}
+  .settings-tab{flex:1;text-align:center;font-size:12px;padding:6px 8px}
+
+  /* Toast — top full width */
+  .toast-container{left:10px;right:10px;top:10px}
+  .toast{min-width:unset;width:100%}
+
+  /* Page header */
+  .page-header{flex-wrap:wrap;gap:8px}
+  .page-heading{font-size:17px}
+
+  /* Import grid in settings */
+  div[id="importCards"]{grid-template-columns:1fr!important}
+}
+
+/* ── Very small mobile (≤480px) ── */
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:.6rem}
+  .kpi-value{font-size:1.1rem}
+  .stats-row{grid-template-columns:1fr}
+  .header-title{font-size:14px}
+  .top-header{padding:8px 12px}
+  #ov-kpi-row .ov-kpi{min-width:calc(50% - 5px)!important}
+  .data-table{min-width:480px}
+}
+
+/* Print */
+@media print{
+  .sidebar,.top-header,.btn,.action-btn,.table-toolbar,
+  .sidebar-overlay{display:none!important}
+  .main-layout{margin-left:0}
+  .main-content{padding:0}
+}

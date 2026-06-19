@@ -24,6 +24,9 @@
   </div>
 </div>
 
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
   <div class="sidebar-brand">
@@ -89,7 +92,7 @@
       <button class="btn btn-sm" title="Reset — Password Required"
         style="background:#fff5f5;border:1px solid #fecaca;color:#dc2626;font-size:12px;font-weight:600;padding:6px 12px;gap:5px"
         onclick="headerResetGuard()">
-        <i class="bi bi-arrow-counterclockwise"></i> Reset
+        <i class="bi bi-arrow-counterclockwise"></i><span class="hide-mobile"> Reset</span>
       </button>
       <button class="btn btn-outline btn-sm" onclick="firebase.auth().signOut().then(()=>location.href='index.html')">
         <i class="bi bi-box-arrow-right"></i> Logout
@@ -319,12 +322,29 @@ async function navigateTo(section) {
 }
 
 document.querySelectorAll('.nav-item').forEach(el => {
-  el.addEventListener('click', () => navigateTo(el.dataset.section));
+  el.addEventListener('click', () => {
+    navigateTo(el.dataset.section);
+    if(isMobile()) closeMobileSidebar(); // auto-close sidebar on mobile
+  });
 });
 
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('collapsed');
-  document.getElementById('mainLayout').classList.toggle('expanded');
+function isMobile(){ return window.innerWidth <= 768; }
+
+function toggleSidebar(){
+  if(isMobile()){
+    const sb=document.getElementById('sidebar');
+    const ov=document.getElementById('sidebarOverlay');
+    sb.classList.toggle('mobile-open');
+    ov.classList.toggle('show');
+  } else {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+    document.getElementById('mainLayout').classList.toggle('expanded');
+  }
+}
+
+function closeMobileSidebar(){
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
 }
 </script>
 </body>
