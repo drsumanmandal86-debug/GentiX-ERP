@@ -177,22 +177,27 @@ const reportsModule = (() => {
     const from = new Date(startDate+'T00:00:00'), to = new Date(endDate+'T23:59:59');
 
     try {
-      const [salesSnap, expSnap, prodsSnap, cashSnap] = await Promise.all([
-        window.db.collection('sales').where('createdAt','>=',from).where('createdAt','<=',to).get(),
+      // Fetch all, filter in JS by 'date' string — handles imported + new data
+      const fds = from.toISOString().substring(0,10);
+      const tds = to.toISOString().substring(0,10);
+      const filterByDate = snap => ({ docs: snap.docs.filter(d => { const ds=(d.data().date||'').substring(0,10); return ds>=fds&&ds<=tds; }) });
+
+      const [allSales, expSnap, prodsSnap, cashSnap] = await Promise.all([
+        window.db.collection('sales').get(),
         window.db.collection('expenses').get(),
         window.db.collection('products').get(),
         window.db.collection('cashBook').get()
       ]);
 
+      const salesSnap = filterByDate(allSales);
       const sales    = salesSnap.docs.map(d=>d.data());
       const prods    = prodsSnap.docs.map(d=>({id:d.id,...d.data()}));
       const cashDocs = cashSnap.docs.map(d=>d.data());
 
-      // Filter expenses by date and status
+      // Filter expenses by date string + status
       const expDocs = expSnap.docs.map(d=>d.data()).filter(e => {
-        const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date||0);
-        const inRange = d>=from && d<=to;
-        return inRange && (e.status==='Paid' || e.category==='Meta/Facebook Ads');
+        const ds = (e.date||'').substring(0,10);
+        return ds>=fds && ds<=tds && (e.status==='Paid' || e.category==='Meta/Facebook Ads');
       });
 
       const totalSales    = sales.filter(s=>s.status!=='Returned').reduce((s,d)=>s+(d.total||0),0);

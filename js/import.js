@@ -107,11 +107,12 @@ window.ImportTool = (() => {
     })).filter(r => r.personName),
 
     // FB_Ad_Settings: Ad Name | Status | Lifetime Spent
-    fbAdSettings: rows => rows.map((r,i) => ({
-      _id: s(r[0]) || ('AD-IMP-'+i),
-      name: s(r[0]), status: s(r[1])||'Active',
-      lifetimeSpent: n(r[2])
-    })).filter(r => r.name),
+    // NOTE: Firestore doc IDs cannot contain '/' — replace with '-'
+    fbAdSettings: rows => rows.map((r,i) => {
+      const name = s(r[0]);
+      const safeId = name.replace(/\//g,'-').replace(/[.#$[\]]/g,'_').substring(0,100) || ('AD-IMP-'+i);
+      return { _id: safeId, name, status: s(r[1])||'Active', lifetimeSpent: n(r[2]) };
+    }).filter(r => r.name),
 
     // FB_Ad_Logs: Date | Ad Name | Lifetime USD | Daily USD | Rate | Total BDT
     fbAdLogs: rows => rows.map((r,i) => ({

@@ -280,7 +280,10 @@ const fbModule = (() => {
     if (!start||!end) { toast('Select date range','error'); return; }
     const body = document.getElementById('reportTableBody');
     if (body) body.innerHTML='<tr><td colspan="4" style="text-align:center;padding:12px;color:#9ca3af">Loading…</td></tr>';
-    const filtered = adLogs.filter(l => l.date >= start && l.date <= end);
+    // Re-fetch from Firestore to ensure fresh data
+    const snap = await window.db.collection('fbAdLogs').get();
+    const allLogs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    const filtered = allLogs.filter(l => (l.date||'').substring(0,10) >= start && (l.date||'').substring(0,10) <= end);
     let tUSD = 0, tBDT = 0;
     if (!filtered.length) { if(body) body.innerHTML='<tr><td colspan="4" style="text-align:center;padding:12px;color:#9ca3af">No data found</td></tr>'; return; }
     if (body) body.innerHTML = filtered.map(r => { tUSD+=r.dailyUSD||0; tBDT+=r.totalBDT||0;

@@ -2,9 +2,17 @@
 const ledgerModule = (() => {
   let allHistory = [], filteredHistory = [], curPage = 1;
   const PER_PAGE = 6;
-  const FIXED_NAMES = ["Chandan Mandal", "Nitai Biswas", "Prollad Bose", "Dola Mandal"];
+  const DEFAULT_NAMES = ["Chandan Mandal", "Nitai Biswas", "Prollad Bose", "Dola Mandal"];
+  let PERSON_NAMES = [...DEFAULT_NAMES];
 
   async function load() {
+    // Load custom names from Firestore
+    try {
+      const snap = await window.db.collection('settings').doc('config').get();
+      if (snap.exists && snap.data().ledgerNames?.length) {
+        PERSON_NAMES = [...DEFAULT_NAMES, ...snap.data().ledgerNames.filter(n => !DEFAULT_NAMES.includes(n))];
+      }
+    } catch(e) {}
     renderLayout();
     await fetchData();
   }
@@ -71,11 +79,16 @@ const ledgerModule = (() => {
 
         <!-- Person Name with dropdown -->
         <div style="position:relative;margin-bottom:12px">
-          <label class="form-label">Person Name</label>
-          <input type="text" id="pName" class="form-control" placeholder="Click to select name..."
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <label class="form-label" style="margin:0">Person Name</label>
+            <button onclick="ledgerModule.showManageNames()" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px">
+              <i class="bi bi-person-plus"></i> Manage Names
+            </button>
+          </div>
+          <input type="text" id="pName" class="form-control" placeholder="Click to select or type name..."
             autocomplete="off" onclick="ledgerModule.toggleDropdown()" oninput="ledgerModule.filterNames()">
           <div id="nameDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;background:#fff;border:1px solid #ced4da;border-radius:0 0 10px 10px;max-height:200px;overflow-y:auto;box-shadow:0 4px 6px rgba(0,0,0,.1)">
-            ${FIXED_NAMES.map(n=>`<div onclick="ledgerModule.selectName('${n}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:13.5px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">${n}</div>`).join('')}
+            ${PERSON_NAMES.map(nm=>`<div onclick="ledgerModule.selectName('${nm}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:13.5px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">${nm}</div>`).join('')}
           </div>
         </div>
 
@@ -157,7 +170,7 @@ const ledgerModule = (() => {
     const q = (document.getElementById('pName')?.value || '').toLowerCase();
     const dd = document.getElementById('nameDropdown');
     if (!dd) return;
-    const filtered = FIXED_NAMES.filter(n => n.toLowerCase().includes(q));
+    const filtered = PERSON_NAMES.filter(n => n.toLowerCase().includes(q));
     dd.innerHTML = filtered.map(n =>
       `<div onclick="ledgerModule.selectName('${n}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:13.5px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">${n}</div>`
     ).join('') || '<div style="padding:10px 14px;color:#9ca3af;font-size:13px">No match</div>';
@@ -274,6 +287,57 @@ const ledgerModule = (() => {
     } catch(e) { btn.disabled=false; btn.innerHTML='Save Entry'; toast('Error: '+e.message,'error'); }
   }
 
+  /* ── Manage Person Names ── */
+  function showManageNames() {
+    const customNames = PERSON_NAMES.filter(n => !DEFAULT_NAMES.includes(n));
+    openModal('Manage Person Names', `
+      <div style="margin-bottom:14px">
+        <p style="font-size:12px;color:#6b7280;margin-bottom:10px">Default names (পরিবর্তন হবে না):</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+          ${DEFAULT_NAMES.map(n=>`<span style="background:#f0f4ff;color:#3949ab;padding:4px 10px;border-radius:20px;font-size:12px">${n}</span>`).join('')}
+        </div>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:8px">আপনার custom names:</p>
+        <div id="customNamesList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:30px;margin-bottom:12px">
+          ${customNames.length ? customNames.map(n=>`
+            <span style="background:#f9fafb;border:1px solid #e5e7eb;padding:4px 10px;border-radius:20px;font-size:12px;display:flex;align-items:center;gap:6px">
+              ${n}
+              <i class="bi bi-x-circle" style="color:#e74c3c;cursor:pointer" onclick="ledgerModule.removeName('${n}')"></i>
+            </span>`).join('') : '<span style="color:#9ca3af;font-size:12px">কোনো custom name নেই</span>'}
+        </div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="newPersonName" class="form-control" placeholder="নতুন নাম লিখুন..." style="flex:1">
+          <button class="btn btn-primary" onclick="ledgerModule.addName()">Add</button>
+        </div>
+      </div>`,
+      `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
+  }
+
+  async function addName() {
+    const input = document.getElementById('newPersonName');
+    const name = input?.value.trim();
+    if (!name) { toast('নাম লিখুন','error'); return; }
+    if (PERSON_NAMES.includes(name)) { toast('এই নাম আগেই আছে','warning'); return; }
+    PERSON_NAMES.push(name);
+    const customNames = PERSON_NAMES.filter(n => !DEFAULT_NAMES.includes(n));
+    await window.db.collection('settings').doc('config').set({ ledgerNames: customNames }, { merge: true });
+    toast('নাম যোগ হয়েছে!','success');
+    closeModal();
+    // Re-render layout to update dropdown
+    renderLayout();
+    await fetchData();
+  }
+
+  async function removeName(name) {
+    if (!confirm(`"${name}" মুছবেন?`)) return;
+    PERSON_NAMES = PERSON_NAMES.filter(n => n !== name);
+    const customNames = PERSON_NAMES.filter(n => !DEFAULT_NAMES.includes(n));
+    await window.db.collection('settings').doc('config').set({ ledgerNames: customNames }, { merge: true });
+    toast('নাম মুছা হয়েছে','success');
+    closeModal();
+    renderLayout();
+    await fetchData();
+  }
+
   /* ── EDIT Entry ── */
   function showEdit(id, personName, cashIn, cashOut, note, date) {
     openModal('Edit Ledger Entry', `
@@ -317,5 +381,5 @@ const ledgerModule = (() => {
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
-  return { load, toggleDropdown, selectName, filterNames, filterHistory, saveEntry, showEdit, updateEntry, delEntry, changePage };
+  return { load, toggleDropdown, selectName, filterNames, filterHistory, saveEntry, showManageNames, addName, removeName, showEdit, updateEntry, delEntry, changePage };
 })();

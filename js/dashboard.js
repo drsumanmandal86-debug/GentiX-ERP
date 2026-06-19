@@ -147,9 +147,17 @@ const dashModule = (() => {
   }
 
   async function fetchWithRange(col, range) {
-    let q = window.db.collection(col);
-    if (range) q = q.where('createdAt','>=',range.from).where('createdAt','<=',range.to);
-    return q.get();
+    // Always fetch all, filter in JS by 'date' field
+    // This handles both new data (date=today) and imported data (date=original)
+    const snap = await window.db.collection(col).get();
+    if (!range) return snap;
+    const from = range.from.toISOString().substring(0,10);
+    const to   = range.to.toISOString().substring(0,10);
+    const filtered = snap.docs.filter(d => {
+      const ds = (d.data().date||'').substring(0,10);
+      return ds >= from && ds <= to;
+    });
+    return { docs: filtered };
   }
 
   async function loadBottomCards(products, sales, suppliers) {
