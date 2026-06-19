@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GentiX Fashion ERP</title>
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
@@ -233,23 +233,23 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="js/config.js?v=4"></script>
-<script src="js/utils.js?v=4"></script>
-<script src="js/sheets-sync.js?v=4"></script>
-<script src="js/import.js?v=4"></script>
-<script src="js/dashboard.js?v=4"></script>
-<script src="js/inventory.js?v=4"></script>
-<script src="js/sales.js?v=4"></script>
-<script src="js/purchases.js?v=4"></script>
-<script src="js/expenses.js?v=4"></script>
-<script src="js/cashbook.js?v=4"></script>
-<script src="js/suppliers.js?v=4"></script>
-<script src="js/customers.js?v=4"></script>
-<script src="js/fbtracker.js?v=4"></script>
-<script src="js/ledger.js?v=5"></script>
-<script src="js/reports.js?v=4"></script>
-<script src="js/overview.js?v=4"></script>
-<script src="js/settings.js?v=4"></script>
+<script src="js/config.js?v=6"></script>
+<script src="js/utils.js?v=6"></script>
+<script src="js/sheets-sync.js?v=6"></script>
+<script src="js/import.js?v=6"></script>
+<script src="js/dashboard.js?v=6"></script>
+<script src="js/inventory.js?v=6"></script>
+<script src="js/sales.js?v=6"></script>
+<script src="js/purchases.js?v=6"></script>
+<script src="js/expenses.js?v=6"></script>
+<script src="js/cashbook.js?v=6"></script>
+<script src="js/suppliers.js?v=6"></script>
+<script src="js/customers.js?v=6"></script>
+<script src="js/fbtracker.js?v=6"></script>
+<script src="js/ledger.js?v=6"></script>
+<script src="js/reports.js?v=6"></script>
+<script src="js/overview.js?v=6"></script>
+<script src="js/settings.js?v=6"></script>
 
 <script>
 firebase.initializeApp(firebaseConfig);
@@ -271,7 +271,7 @@ const MODULES = {
   customers:customersModule, reports:reportsModule, overview:overviewModule, settings:settingsModule
 };
 
-let loadedSections = new Set();
+// loadedSections removed — always re-render for correct mobile/desktop layout
 window.appSettings = {};
 
 auth.onAuthStateChanged(async user => {
@@ -317,12 +317,8 @@ async function navigateTo(section) {
   const titleEl = document.getElementById('pageTitle');
   if (titleEl) titleEl.textContent = PAGE_TITLES[section] || section;
 
-  // Mobile: always re-render so mobile layout generates fresh
-  // Desktop: only render first time (cached after)
-  if (section === 'dashboard' || !loadedSections.has(section) || isMobile()) {
-    await MODULES[section].load();
-    if (section !== 'dashboard') loadedSections.add(section);
-  }
+  // Always load — ensures correct mobile/desktop layout on every navigation
+  await MODULES[section].load();
   if (isMobile()) requestAnimationFrame(makeMobileReady);
 }
 
