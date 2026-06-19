@@ -76,47 +76,19 @@ const settingsModule = (() => {
       </div>
     </div>
 
-    <!-- Row 2: Data Repair Tools -->
-    <div class="table-card mb-3" style="padding:16px;border-left:4px solid #f59e0b">
-      <h6 style="font-weight:700;margin:0 0 12px;color:#92400e"><i class="bi bi-tools me-2"></i>Data Integrity Repair</h6>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <div>
-            <div style="font-weight:600;font-size:13px">1. Purchase → Product Links</div>
-            <small style="color:#9ca3af">Import করা purchases-এ productId নেই — stock edit update-এ কাজ করে না</small>
-          </div>
-          <button class="btn btn-sm" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-weight:700;white-space:nowrap"
-            onclick="settingsModule.repairProductLinks()">
-            <i class="bi bi-link-45deg"></i> Run Fix
-          </button>
+    <!-- Row 2: One-time Import Repair (auto-runs in background now, kept for manual trigger) -->
+    <div class="table-card mb-3" style="padding:14px 16px;border-left:4px solid #e2e8f0">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:700;font-size:13px;color:#374151"><i class="bi bi-tools me-2" style="color:#9ca3af"></i>Import Data Repair</span>
+          <small style="color:#9ca3af;display:block;margin-top:2px">Import করা পুরোনো data-র productId link repair করতে (একবারই দরকার)</small>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <div>
-            <div style="font-weight:600;font-size:13px">2. Supplier Total Purchase</div>
-            <small style="color:#9ca3af">Edit-এর পর negative দেখালে — purchases collection থেকে recalculate</small>
-          </div>
-          <button class="btn btn-sm" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-weight:700;white-space:nowrap"
-            onclick="settingsModule.repairSupplierTotals()">
-            <i class="bi bi-calculator"></i> Run Fix
-          </button>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <div>
-            <div style="font-weight:600;font-size:13px">3. Product Stock from Purchases</div>
-            <small style="color:#9ca3af">Purchase edit-এর পর stock না কমলে — re-apply qty difference</small>
-          </div>
-          <button class="btn btn-sm" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-weight:700;white-space:nowrap"
-            onclick="settingsModule.repairStockFromPurchases()">
-            <i class="bi bi-box-seam"></i> Run Fix
-          </button>
-        </div>
-        <div style="display:flex;justify-content:flex-end">
-          <button class="btn btn-sm btn-primary" onclick="settingsModule.runAllRepairs()" style="font-weight:700">
-            <i class="bi bi-magic"></i> Run All 3 Repairs
-          </button>
-        </div>
+        <button class="btn btn-sm" style="background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;font-weight:600"
+          onclick="settingsModule.runAllRepairs()">
+          <i class="bi bi-magic"></i> Run Repair
+        </button>
       </div>
-      <div id="repairStatus" style="margin-top:10px;font-size:12px;color:#6b7280;padding:8px;background:#f8fafc;border-radius:6px;display:none"></div>
+      <div id="repairStatus" style="margin-top:8px;font-size:12px;color:#6b7280;display:none"></div>
     </div>
 
     <!-- Row 3: Categories + Sub-categories -->
