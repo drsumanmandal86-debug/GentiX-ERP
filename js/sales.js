@@ -68,6 +68,10 @@ const salesModule = (() => {
             <h5 style="color:#e74c3c;font-weight:700;margin-bottom:8px"><i class="bi bi-arrow-counterclockwise"></i> Direct Return Adjustment</h5>
             <p style="color:#6b7280;font-size:12px;margin-bottom:12px">সেল আইডি ছাড়াই সরাসরি বড় পণ্য রিটার্ন দিন। স্টক বাড়বে, কুরিয়ার ডিউ কমবে।</p>
             <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label" style="font-size:12px">Return Date *</label>
+              <input type="date" id="adjDate" class="form-control" value="${todayStr()}" style="font-size:13px">
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
               <label class="form-label" style="font-size:12px">Courier/Customer</label>
               <select id="adjCustomer" class="form-control" style="font-size:13px"><option value="">Select Courier</option></select>
             </div>
@@ -231,20 +235,24 @@ const salesModule = (() => {
   async function executeBulkReturn(){
     const custSel=document.getElementById('adjCustomer');const prodSel=document.getElementById('adjProduct');
     const custId=custSel.value;const prodOpt=prodSel.options[prodSel.selectedIndex];
-    const qty=ni(document.getElementById('adjQty').value);const price=n(document.getElementById('adjPrice').value);const btn=document.getElementById('adjSubmitBtn');
+    const qty=ni(document.getElementById('adjQty').value);const price=n(document.getElementById('adjPrice').value);
+    const retDate=document.getElementById('adjDate')?.value||todayStr(); // ← use date picker
+    const btn=document.getElementById('adjSubmitBtn');
     if(!custId||!prodOpt?.value||qty<=0||!price){toast('সবগুলো ঘর পূরণ করুন!','error');return;}
-    if(!confirm(`${qty} পিস পণ্য রিটার্ন করতে চান?`))return;
+    if(!retDate){toast('Return date দিন','error');return;}
+    if(!confirm(`${retDate} তারিখে ${qty} পিস পণ্য রিটার্ন করতে চান?`))return;
     btn.disabled=true;btn.textContent='Processing…';
     const total=qty*price,prodId=prodOpt.value,prodName=prodOpt.dataset.name;
     const custName=custSel.options[custSel.selectedIndex].dataset.name;
     try{
       const batch=window.db.batch();
       const ref=window.db.collection('sales').doc();
-      batch.set(ref,{saleId:'RTN-ADJ-'+Date.now(),date:todayStr(),customerId:custId,customerName:custName,product:prodName,productId:prodId,qty:-qty,price,total:-total,cogs:0,status:'Adjustment',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      batch.set(ref,{saleId:'RTN-ADJ-'+Date.now(),date:retDate,customerId:custId,customerName:custName,product:prodName,productId:prodId,qty:-qty,price,total:-total,cogs:0,status:'Adjustment',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       batch.update(window.db.collection('products').doc(prodId),{currentStock:firebase.firestore.FieldValue.increment(qty)});
       batch.update(window.db.collection('customers').doc(custId),{totalOrder:firebase.firestore.FieldValue.increment(-qty),totalCod:firebase.firestore.FieldValue.increment(-total)});
-      await batch.commit();toast(`${qty} টি পণ্য সফলভাবে অ্যাডজাস্ট হয়েছে।`,'success');
+      await batch.commit();toast(`${qty} টি পণ্য (${retDate}) সফলভাবে রিটার্ন হয়েছে।`,'success');
       document.getElementById('adjQty').value='';document.getElementById('adjPrice').value='';
+      document.getElementById('adjDate').value=todayStr();
       btn.disabled=false;btn.textContent='Confirm Bulk Return';await load();
     }catch(e){btn.disabled=false;btn.textContent='Confirm Bulk Return';toast('Error: '+e.message,'error');}
   }

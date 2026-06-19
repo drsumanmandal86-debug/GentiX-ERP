@@ -369,7 +369,7 @@ const overviewModule = (() => {
     // Breakdown table rows
     const tb=document.getElementById('ov-monthly-table');
     if(tb){
-      const rowKeys=isDaily?[...months]:[...months].reverse(); // daily: asc (1→31), monthly: desc
+      const rowKeys=[...months].reverse(); // newest first — both daily and monthly descending
       tb.innerHTML=rowKeys.filter(m=>{ // hide zero-rows for daily if nothing happened
         const d=monthData[m];return !isDaily||(d.rev>0||d.cogs>0||d.opex>0||d.txns>0);
       }).map(m=>{
