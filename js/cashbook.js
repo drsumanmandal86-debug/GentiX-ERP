@@ -43,6 +43,10 @@ const cashbookModule = (() => {
             <select id="refId" class="form-control"><option value="">-- Select --</option></select>
           </div>
           <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Transaction Date</label>
+            <input type="date" id="cbDate" class="form-control" value="${todayStr()}">
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Particulars / Note</label>
             <input type="text" id="particulars" class="form-control" placeholder="e.g. Monthly Rent or Initial Capital">
           </div>
@@ -116,7 +120,9 @@ const cashbookModule = (() => {
     const refId     = document.getElementById('refId').value;
     const note      = document.getElementById('particulars').value.trim();
     const amount    = n(document.getElementById('cbAmount').value);
+    const date      = document.getElementById('cbDate')?.value || todayStr();
     const btn       = document.getElementById('cashSubmitBtn');
+    if (!date) { toast('Date is required','error'); return; }
     if (!note||!amount) { toast('Note and amount are required','error'); return; }
     if ((type==='Customer'||type==='Supplier')&&!refId) { toast('Please select an account','error'); return; }
     btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…';
@@ -125,7 +131,7 @@ const cashbookModule = (() => {
     try {
       const batch = window.db.batch();
       const ref = window.db.collection('cashBook').doc();
-      batch.set(ref,{type,refId,particulars:note,cashIn,cashOut,amount,date:todayStr(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      batch.set(ref,{type,refId,particulars:note,cashIn,cashOut,amount,date,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       if (type==='Customer'&&refId) {
         batch.update(window.db.collection('customers').doc(refId),{totalCod:firebase.firestore.FieldValue.increment(-cashIn)});
       } else if (type==='Supplier'&&refId) {
@@ -135,7 +141,9 @@ const cashbookModule = (() => {
       // Sync to Google Sheets
       window.SheetsSync?.cashBook({ date:todayStr(), refId, particulars:note, cashIn, cashOut, type });
       toast('Transaction Recorded!','success');
-      document.getElementById('particulars').value=''; document.getElementById('cbAmount').value='';
+      document.getElementById('particulars').value='';
+      document.getElementById('cbAmount').value='';
+      const dateEl=document.getElementById('cbDate');if(dateEl)dateEl.value=todayStr();
       btn.disabled=false; btn.innerHTML='<i class="bi bi-save"></i> Save Transaction';
       await fetchFormData(); await fetchEntries();
     } catch(e) { btn.disabled=false; btn.innerHTML='Save Transaction'; toast('Error: '+e.message,'error'); }
