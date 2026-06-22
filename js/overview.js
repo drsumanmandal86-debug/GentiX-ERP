@@ -3,6 +3,7 @@ const overviewModule = (() => {
   let myChart = null;
   let allSales=[], allExpenses=[], allProducts=[], allCash=[];
   let currentPeriod = 'thisMonth';
+  let pickedMonth = '';
 
   const localDate = d => {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -41,6 +42,13 @@ const overviewModule = (() => {
       case 'thisYear': s=`${now.getFullYear()}-01-01`; break;
       case 'lastYear': s=`${now.getFullYear()-1}-01-01`; e=`${now.getFullYear()-1}-12-31`; break;
       case 'custom': s=cf||localDate(now); e=ct||localDate(now); break;
+      case 'pickMonth': {
+        const m=pickedMonth||`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        s=`${m}-01`;
+        const lastDay=new Date(parseInt(m.split('-')[0]),parseInt(m.split('-')[1]),0).getDate();
+        e=`${m}-${String(lastDay).padStart(2,'0')}`;
+        break;
+      }
       default: s='2020-01-01';
     }
     return {s,e};
@@ -136,8 +144,10 @@ const overviewModule = (() => {
           <h5 style="color:#fff;font-weight:800;margin:0">Business Investment vs Capital Performance</h5>
           <p style="color:#475569;font-size:12px;margin:3px 0 0">Sales · Cost · Profit · ROI — Dynamic Chart</p>
         </div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${PERIODS.map(([k,l])=>`<button class="ov-pb${k===currentPeriod?' active':''}" id="ovbtn-${k}" onclick="overviewModule.setPeriod('${k}')">${l}</button>`).join('')}
+          <button class="ov-pb${currentPeriod==='pickMonth'?' active':''}" id="ovbtn-pickMonth" onclick="overviewModule.toggleMonthPicker()" title="যেকোনো মাস বেছে নিন" style="display:flex;align-items:center;gap:4px"><i class="bi bi-calendar3"></i> Pick Month</button>
+          <input type="month" id="ov-month-picker" style="display:none;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" onchange="overviewModule.setPickMonth(this.value)">
         </div>
       </div>
 
@@ -174,8 +184,9 @@ const overviewModule = (() => {
 
     <!-- Monthly breakdown -->
     <div class="table-card mb-3" style="overflow:hidden">
-      <div style="padding:12px 16px;border-bottom:1px solid #e9ecef;font-weight:700;font-size:13px">
-        <i class="bi bi-table me-2" style="color:#3949ab"></i>Monthly Breakdown
+      <div id="ov-breakdown-header" style="padding:12px 16px;border-bottom:1px solid #e9ecef;font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center">
+        <span id="ov-breakdown-title"><i class="bi bi-table me-2" style="color:#3949ab"></i>Monthly Breakdown</span>
+        <button onclick="overviewModule.printBreakdown()" class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 12px;font-weight:700"><i class="bi bi-printer me-1"></i>Print / Save</button>
       </div>
       <div style="overflow-x:auto">
         <table class="data-table"><thead><tr>
@@ -257,6 +268,83 @@ const overviewModule = (() => {
     </div>`;
   }
 
+  function toggleMonthPicker(){
+    const picker=document.getElementById('ov-month-picker');
+    if(!picker)return;
+    const isHidden=picker.style.display==='none'||!picker.style.display;
+    picker.style.display=isHidden?'inline-block':'none';
+    if(isHidden){if(pickedMonth)picker.value=pickedMonth;picker.focus();}
+  }
+
+  function setPickMonth(val){
+    if(!val)return;
+    pickedMonth=val;
+    currentPeriod='pickMonth';
+    document.querySelectorAll('[id^="ovbtn-"]').forEach(b=>b.classList.remove('active'));
+    const btn=document.getElementById('ovbtn-pickMonth');
+    if(btn){btn.classList.add('active');const[y,mo]=val.split('-');btn.innerHTML=`<i class="bi bi-calendar3"></i> ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]} ${y}`;}
+    const picker=document.getElementById('ov-month-picker');if(picker)picker.style.display='none';
+    renderChart('pickMonth');
+  }
+
+  function printBreakdown(){
+    const tableEl=document.getElementById('ov-monthly-table');
+    const theadEl=document.querySelector('#ov-monthly-table')?.closest('table')?.querySelector('thead');
+    const titleEl=document.getElementById('ov-breakdown-title');
+    if(!tableEl||!theadEl)return;
+    const title=(titleEl?.textContent||'Breakdown').trim();
+    const tableHtml=`<table>${theadEl.outerHTML}<tbody>${tableEl.innerHTML}</tbody></table>`;
+    const today=new Date().toLocaleDateString('en-BD',{day:'2-digit',month:'long',year:'numeric'});
+    const html=`<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><title>${title}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;padding:0}
+  .page{max-width:960px;margin:0 auto;padding:28px 36px}
+  .hdr{border-bottom:3px solid #1e3a5f;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+  h1{font-size:18px;font-weight:800;color:#1e3a5f}
+  .sub{font-size:11px;color:#64748b;margin-top:3px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1e3a5f;color:#fff;padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  td{padding:8px 12px;border-bottom:1px solid #e9ecef;font-size:12px}
+  tr:nth-child(even) td{background:#f8fafc}
+  .footer{margin-top:18px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between;border-top:1px solid #e9ecef;padding-top:10px}
+  .no-print{background:#1e3a5f;color:#fff;padding:10px 36px;display:flex;gap:10px;align-items:center}
+  .btn-p{background:#fff;color:#1e3a5f;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  .btn-i{background:#22c55e;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  @media print{.no-print{display:none}@page{margin:1cm;size:A4 landscape}}
+</style>
+</head><body>
+<div class="no-print">
+  <button class="btn-p" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button class="btn-i" onclick="dlImg()">📷 Download as Image</button>
+  <span style="font-size:12px;opacity:.7;margin-left:8px">Print করতে PDF option বেছে নিন</span>
+</div>
+<div class="page" id="rpt">
+  <div class="hdr">
+    <div><h1>GentiX Fashion ERP</h1><div class="sub">${title}</div></div>
+    <div style="text-align:right;font-size:11px;color:#64748b"><div><strong>Generated:</strong> ${today}</div><div><strong>System:</strong> GentiX ERP v2.0</div></div>
+  </div>
+  ${tableHtml}
+  <div class="footer"><div>GentiX Fashion ERP — Management Report</div><div>${today}</div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+async function dlImg(){
+  const np=document.querySelectorAll('.no-print');
+  np.forEach(e=>e.style.display='none');
+  const c=await html2canvas(document.getElementById('rpt'),{scale:2,backgroundColor:'#fff',useCORS:true});
+  np.forEach(e=>e.style.display='flex');
+  const a=document.createElement('a');
+  a.download='GentiX_${title.replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().substring(0,10)}.png';
+  a.href=c.toDataURL('image/png');a.click();
+}
+</script>
+</body></html>`;
+    const win=window.open('','_blank','width=1000,height=750,scrollbars=yes');
+    win.document.write(html);win.document.close();
+  }
+
   function toggleCustom(side){
     const sel=document.getElementById(`cmp${side}`);
     const box=document.getElementById(`cmp${side}-custom`);
@@ -276,7 +364,7 @@ const overviewModule = (() => {
     const costMap={};allProducts.forEach(p=>{if(p.name)costMap[p.name.trim().toLowerCase()]=p.buyPrice||0;});
 
     // Daily view for single-month/week periods; Monthly view for multi-month periods
-    const DAILY_PERIODS=['today','yesterday','thisWeek','lastWeek','thisMonth','lastMonth'];
+    const DAILY_PERIODS=['today','yesterday','thisWeek','lastWeek','thisMonth','lastMonth','pickMonth'];
     const isDaily=DAILY_PERIODS.includes(period);
     const keyFn=ds=>isDaily?ds:ds.substring(0,7);
 
@@ -372,8 +460,12 @@ const overviewModule = (() => {
     });
 
     // Table header label update
-    const tblHeader=document.querySelector('#ov-monthly-table')?.closest('.table-card')?.querySelector('div');
-    if(tblHeader) tblHeader.innerHTML=`<i class="bi bi-table me-2" style="color:#3949ab"></i>${isDaily?'Daily Breakdown':'Monthly Breakdown'}`;
+    const titleEl=document.getElementById('ov-breakdown-title');
+    if(titleEl){
+      let titleTxt=isDaily?'Daily Breakdown':'Monthly Breakdown';
+      if(period==='pickMonth'&&pickedMonth){const[y,mo]=pickedMonth.split('-');titleTxt=`Daily Breakdown — ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]} ${y}`;}
+      titleEl.innerHTML=`<i class="bi bi-table me-2" style="color:#3949ab"></i>${titleTxt}`;
+    }
     const thPeriod=document.querySelector('#ov-monthly-table')?.closest('table')?.querySelector('th');
     if(thPeriod) thPeriod.textContent=isDaily?'Date':'Month';
 
@@ -818,5 +910,5 @@ async function downloadImage(){
     }, 100);
   }
 
-  return{load,setPeriod,runComparison,toggleCustom,generateAuditReport};
+  return{load,setPeriod,runComparison,toggleCustom,generateAuditReport,toggleMonthPicker,setPickMonth,printBreakdown};
 })();
