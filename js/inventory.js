@@ -31,7 +31,7 @@ const inventoryModule = (() => {
       <div class="stats-row">
         <div class="stat-card"><div class="stat-label">Total Products</div><div class="stat-value sv-blue" id="inv-count">0</div></div>
         <div class="stat-card"><div class="stat-label">Stock Value (Cost)</div><div class="stat-value sv-green" id="inv-value">৳0</div></div>
-        <div class="stat-card"><div class="stat-label">Low Stock (&lt;10)</div><div class="stat-value sv-orange" id="inv-low">0</div></div>
+        <div class="stat-card"><div class="stat-label">Low Stock (&lt;500)</div><div class="stat-value sv-orange" id="inv-low">0</div></div>
         <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value sv-red" id="inv-out">0</div></div>
       </div>
       <div class="table-card">
@@ -48,7 +48,7 @@ const inventoryModule = (() => {
   function renderStats() {
     const total = products.length;
     const value = products.reduce((s,p) => s+(p.currentStock||0)*(p.buyPrice||0), 0);
-    const low   = products.filter(p => (p.currentStock||0)>0 && (p.currentStock||0)<10).length;
+    const low   = products.filter(p => (p.currentStock||0)>0 && (p.currentStock||0)<500).length;
     const out   = products.filter(p => (p.currentStock||0)===0).length;
     setEl('inv-count', total); setEl('inv-value', fmt(value));
     setEl('inv-low', low); setEl('inv-out', out);
@@ -67,7 +67,7 @@ const inventoryModule = (() => {
       <th>Buy Price</th><th>Sell Price</th><th>Stock</th><th>Stock Value</th><th>Actions</th>
     </tr></thead><tbody>
     ${list.map((p,i) => {
-      const sc = (p.currentStock||0)===0 ? 'badge-danger' : (p.currentStock||0)<10 ? 'badge-warning' : 'badge-success';
+      const sc = (p.currentStock||0)<500 ? 'badge-danger' : (p.currentStock||0)<=5000 ? 'badge-warning' : 'badge-success';
       const margin = (p.sellPrice||0)>0 ? (((p.sellPrice-p.buyPrice)/p.sellPrice)*100).toFixed(1) : '—';
       return `<tr>
         <td><small style="color:#9ca3af">${fmtDate(p.date||p.createdAt)||'—'}</small></td>

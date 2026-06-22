@@ -150,14 +150,10 @@ const reportsModule = (() => {
               <div><small style="color:#10b981;font-weight:700;font-size:10px;text-transform:uppercase;display:block">PROFIT</small><span id="valProfit" style="font-size:18px;font-weight:800;color:#10b981">0%</span></div>
             </div>
             <hr style="margin:10px 0;opacity:.2">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-              <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-                <small style="color:#9ca3af;font-weight:700;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px">Avg Ticket Size</small>
-                <div style="font-size:16px;font-weight:800;color:#3949ab" id="healthAvgSale">৳0</div>
-              </div>
-              <div style="background:#fff5f5;border-radius:8px;padding:10px;text-align:center">
-                <small style="color:#e74c3c;font-weight:700;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px">Opex Per Txn</small>
-                <div style="font-size:16px;font-weight:800;color:#e74c3c" id="healthOpexTxn">৳0</div>
+            <div style="margin-bottom:10px">
+              <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;cursor:default" onclick="reportsModule._sTap()">
+                <small style="color:#9ca3af;font-weight:700;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px">Avg Margin</small>
+                <div style="font-size:16px;font-weight:800;color:#3949ab" id="healthSavingsAmt">0%</div>
               </div>
             </div>
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px">
@@ -413,10 +409,10 @@ const reportsModule = (() => {
         setEl('valCogs',cogsPct.toFixed(1)+'%');setEl('valOpex',opexPct.toFixed(1)+'%');setEl('valProfit',profPct.toFixed(1)+'%');
         ['barCogs','barOpex','barProfit'].forEach((id,i)=>{ const el=document.getElementById(id);if(el)el.style.width=[cogsPct,opexPct,profPct][i].toFixed(1)+'%';});
         setEl('healthMarginVal',profPct.toFixed(1)+'% Profit');
-        const activeSalesCount=sales.filter(s=>s.status==='Active'||!s.status).length;
-        setEl('healthAvgSale',fmt(activeSalesCount>0?Math.round(totalSales/activeSalesCount):0));
-        const expCount=expDocs.length;
-        setEl('healthOpexTxn',fmt(expCount>0?Math.round(totalExpenses/expCount):0));
+        const totalSavings=expSnap.docs.map(d=>d.data()).filter(e=>e.category==='Savings').reduce((s,e)=>s+(e.amount||0),0);
+        const avgMargin=totalSales>0?(((totalSales-totalCOGS)/totalSales)*100).toFixed(1):'0.0';
+        const savEl=document.getElementById('healthSavingsAmt');
+        if(savEl){savEl.textContent=avgMargin+'%';savEl.dataset.s=fmt(totalSavings);savEl.dataset.orig=avgMargin+'%';}
         const assetTotal=cashInHand+stockValue;
         const cashRatio=assetTotal>0?(cashInHand/assetTotal*100):50,stRatio=100-cashRatio;
         const cashBar=document.getElementById('healthCashBar'),stBar=document.getElementById('healthStockBar');
@@ -531,5 +527,20 @@ const reportsModule = (() => {
 
   function setEl(id,v){const el=document.getElementById(id);if(el)el.innerHTML=v;}
 
-  return{load,setQuickFilter,generateReport,updateGoalCalc,goToLogPage};
+  let _sTapC=0,_sTapT=null,_sHide=null;
+  function _sTap(){
+    clearTimeout(_sTapT);
+    _sTapC++;
+    _sTapT=setTimeout(()=>{_sTapC=0;},1200);
+    if(_sTapC>=3){
+      _sTapC=0;clearTimeout(_sTapT);clearTimeout(_sHide);
+      const el=document.getElementById('healthSavingsAmt');
+      if(!el)return;
+      el.textContent=el.dataset.s||'৳0';
+      el.style.color='#15803d';
+      _sHide=setTimeout(()=>{el.textContent=el.dataset.orig||'0%';el.style.color='#3949ab';},8000);
+    }
+  }
+
+  return{load,setQuickFilter,generateReport,updateGoalCalc,goToLogPage,_sTap};
 })();

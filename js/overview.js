@@ -180,6 +180,7 @@ const overviewModule = (() => {
       <div style="overflow-x:auto">
         <table class="data-table"><thead><tr>
           <th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">COGS</th>
+          <th style="text-align:right">Cash In (SF)</th>
           <th style="text-align:right">Expenses</th><th style="text-align:right">Ad Spend</th>
           <th style="text-align:right">Net Profit</th><th style="text-align:right">Margin</th>
         </tr></thead><tbody id="ov-monthly-table"></tbody></table>
@@ -280,7 +281,7 @@ const overviewModule = (() => {
     const keyFn=ds=>isDaily?ds:ds.substring(0,7);
 
     const monthData={};
-    const add=key=>{if(!monthData[key])monthData[key]={rev:0,cogs:0,opex:0,adCost:0,txns:0};};
+    const add=key=>{if(!monthData[key])monthData[key]={rev:0,cogs:0,opex:0,adCost:0,txns:0,cashIn:0};};
 
     // Pre-fill every day in range for daily view (shows 0 on days with no data)
     if(isDaily){
@@ -300,6 +301,11 @@ const overviewModule = (() => {
       const isFB=(e.category||'').match(/facebook|meta/i);
       if(isFB) monthData[key].adCost+=e.amount||0;  // FB Ads → adCost only
       else     monthData[key].opex+=e.amount||0;     // Other expenses → opex only
+    });
+
+    allCash.filter(c=>{const ds=parseDs(c.date);return ds>=fromDs&&ds<=toDs&&(c.cashIn||0)>0&&c.type!=='Investment';}).forEach(c=>{
+      const ds=parseDs(c.date);const key=keyFn(ds);if(!key)return;add(key);
+      monthData[key].cashIn+=(c.cashIn||0);
     });
 
     const months=Object.keys(monthData).sort();
@@ -388,12 +394,13 @@ const overviewModule = (() => {
           <td style="font-weight:700;padding-left:14px">${label}${d.txns>0?`<small style="color:#9ca3af;font-size:10px;margin-left:6px">${d.txns} txns</small>`:''}</td>
           <td style="text-align:right;font-weight:700;color:#27ae60">${d.rev>0?fmt(d.rev):'—'}</td>
           <td style="text-align:right;color:#6b7280">${d.cogs>0?fmt(d.cogs):'—'}</td>
+          <td style="text-align:right;font-weight:700;color:#3949ab">${d.cashIn>0?fmt(d.cashIn):'—'}</td>
           <td style="text-align:right;color:#e67e22">${d.opex>0?fmt(d.opex):'—'}</td>
           <td style="text-align:right;color:#e74c3c">${d.adCost>0?fmt(d.adCost):'—'}</td>
           <td style="text-align:right;font-weight:800;color:${nc2}">${(d.rev>0||d.opex>0||d.adCost>0)?fmt(net):'—'}</td>
           <td style="text-align:right;padding-right:14px">${d.rev>0?`<span style="background:${nc2}18;color:${nc2};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${mg}%</span>`:'—'}</td>
         </tr>`;
-      }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">No data for selected period</td></tr>';
+      }).join('')||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af">No data for selected period</td></tr>';
     }
   }
 
