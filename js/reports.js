@@ -152,7 +152,7 @@ const reportsModule = (() => {
             <hr style="margin:10px 0;opacity:.2">
             <div style="margin-bottom:10px">
               <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;cursor:default" onclick="reportsModule._sTap()">
-                <small style="color:#9ca3af;font-weight:700;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px">Avg Margin</small>
+                <small style="color:#9ca3af;font-weight:700;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px">Lifetime Avg Margin</small>
                 <div style="font-size:16px;font-weight:800;color:#3949ab" id="healthSavingsAmt">0%</div>
               </div>
             </div>
@@ -410,9 +410,15 @@ const reportsModule = (() => {
         ['barCogs','barOpex','barProfit'].forEach((id,i)=>{ const el=document.getElementById(id);if(el)el.style.width=[cogsPct,opexPct,profPct][i].toFixed(1)+'%';});
         setEl('healthMarginVal',profPct.toFixed(1)+'% Profit');
         const totalSavings=expSnap.docs.map(d=>d.data()).filter(e=>e.category==='Savings'&&(e.status==='Paid'||!e.status)).reduce((s,e)=>s+(e.amount||0),0);
-        const avgMargin=totalSales>0?((netProfit/totalSales)*100).toFixed(1):'0.0';
+        // Lifetime margin — independent of selected period filter
+        const ltSales=allSales.docs.map(d=>d.data()).filter(s=>s.status!=='Returned');
+        const ltRev=ltSales.reduce((s,d)=>s+(d.total||0),0);
+        const ltCOGS=ltSales.reduce((s,d)=>{const bp=costMap[(d.product||'').trim().toLowerCase()]||d.buyPrice||0;return s+(d.qty||0)*bp;},0);
+        const ltExp=expSnap.docs.map(d=>d.data()).filter(e=>e.status==='Paid'||e.category==='Meta/Facebook Ads').reduce((s,e)=>s+(e.amount||0),0);
+        const ltNet=ltRev-ltCOGS-ltExp;
+        const lifetimeMargin=ltRev>0?((ltNet/ltRev)*100).toFixed(1):'0.0';
         const savEl=document.getElementById('healthSavingsAmt');
-        if(savEl){savEl.textContent=avgMargin+'%';savEl.dataset.s=fmt(totalSavings);savEl.dataset.orig=avgMargin+'%';}
+        if(savEl){savEl.textContent=lifetimeMargin+'%';savEl.dataset.s=fmt(totalSavings);savEl.dataset.orig=lifetimeMargin+'%';}
         const assetTotal=cashInHand+stockValue;
         const cashRatio=assetTotal>0?(cashInHand/assetTotal*100):50,stRatio=100-cashRatio;
         const cashBar=document.getElementById('healthCashBar'),stBar=document.getElementById('healthStockBar');
