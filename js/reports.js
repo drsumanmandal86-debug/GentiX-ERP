@@ -409,7 +409,7 @@ const reportsModule = (() => {
         setEl('valCogs',cogsPct.toFixed(1)+'%');setEl('valOpex',opexPct.toFixed(1)+'%');setEl('valProfit',profPct.toFixed(1)+'%');
         ['barCogs','barOpex','barProfit'].forEach((id,i)=>{ const el=document.getElementById(id);if(el)el.style.width=[cogsPct,opexPct,profPct][i].toFixed(1)+'%';});
         setEl('healthMarginVal',profPct.toFixed(1)+'% Profit');
-        const totalSavings=expSnap.docs.map(d=>d.data()).filter(e=>e.category==='Savings').reduce((s,e)=>s+(e.amount||0),0);
+        const totalSavings=expSnap.docs.map(d=>d.data()).filter(e=>e.category==='Savings'&&(e.status==='Paid'||!e.status)).reduce((s,e)=>s+(e.amount||0),0);
         const avgMargin=totalSales>0?(((totalSales-totalCOGS)/totalSales)*100).toFixed(1):'0.0';
         const savEl=document.getElementById('healthSavingsAmt');
         if(savEl){savEl.textContent=avgMargin+'%';savEl.dataset.s=fmt(totalSavings);savEl.dataset.orig=avgMargin+'%';}
@@ -538,7 +538,7 @@ const reportsModule = (() => {
       if(!el)return;
       el.textContent=el.dataset.s||'৳0';
       el.style.color='#15803d';
-      _sHide=setTimeout(()=>{el.textContent=el.dataset.orig||'0%';el.style.color='#3949ab';},8000);
+      _sHide=setTimeout(()=>{el.textContent=el.dataset.orig||'0%';el.style.color='#3949ab';},10000);
     }
   }
 
