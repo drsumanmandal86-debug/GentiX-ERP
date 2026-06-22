@@ -203,11 +203,33 @@ const overviewModule = (() => {
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px" id="ov-health-cards"></div>
     </div>
 
-    <!-- Audit Report Button -->
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-      <button onclick="overviewModule.generateAuditReport()" class="btn btn-primary" style="flex:1;justify-content:center;font-size:13px;font-weight:700;padding:11px">
-        <i class="bi bi-file-earmark-bar-graph-fill me-2"></i>Generate CA Audit Report (PDF/Image)
-      </button>
+    <!-- Audit Report Section -->
+    <div class="table-card mb-3" style="overflow:hidden">
+      <div style="padding:12px 16px;border-bottom:1px solid #e9ecef;font-weight:700;font-size:13px">
+        <i class="bi bi-file-earmark-bar-graph-fill me-2" style="color:#3949ab"></i>CA Audit Report — Period Selector
+      </div>
+      <div style="padding:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:5px">From Date</label>
+            <input type="date" id="auditFrom" class="form-control">
+          </div>
+          <div>
+            <label style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:5px">To Date</label>
+            <input type="date" id="auditTo" class="form-control">
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <button onclick="overviewModule.setAuditPreset('thisMonth')" class="btn btn-outline btn-sm" style="font-size:11px">This Month</button>
+          <button onclick="overviewModule.setAuditPreset('lastMonth')" class="btn btn-outline btn-sm" style="font-size:11px">Last Month</button>
+          <button onclick="overviewModule.setAuditPreset('thisYear')" class="btn btn-outline btn-sm" style="font-size:11px">This Year</button>
+          <button onclick="overviewModule.setAuditPreset('lastYear')" class="btn btn-outline btn-sm" style="font-size:11px">Last Year</button>
+          <button onclick="overviewModule.setAuditPreset('lifetime')" class="btn btn-outline btn-sm" style="font-size:11px">&#8734; Lifetime</button>
+        </div>
+        <button onclick="overviewModule.generateAuditReport()" class="btn btn-primary" style="width:100%;justify-content:center;font-size:13px;font-weight:700;padding:11px">
+          <i class="bi bi-file-earmark-bar-graph-fill me-2"></i>Generate CA Audit Report (PDF/Image)
+        </button>
+      </div>
     </div>
 
     <!-- ===== COMPARISON SECTION ===== -->
@@ -577,22 +599,44 @@ async function dlImg(){
   }
 
   // ===== CA AUDIT REPORT =====
+  function setAuditPreset(type){
+    const now=new Date();let s,e=localDate(now);
+    if(type==='thisMonth'){s=localDate(new Date(now.getFullYear(),now.getMonth(),1));}
+    else if(type==='lastMonth'){s=localDate(new Date(now.getFullYear(),now.getMonth()-1,1));e=localDate(new Date(now.getFullYear(),now.getMonth(),0));}
+    else if(type==='thisYear'){s=`${now.getFullYear()}-01-01`;}
+    else if(type==='lastYear'){s=`${now.getFullYear()-1}-01-01`;e=`${now.getFullYear()-1}-12-31`;}
+    else{s='2020-01-01';}
+    const fEl=document.getElementById('auditFrom'),tEl=document.getElementById('auditTo');
+    if(fEl)fEl.value=s;if(tEl)tEl.value=e;
+  }
+
   async function generateAuditReport(){
     const btn=document.querySelector('[onclick*="generateAuditReport"]');
     if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Generating…';}
     try{
-      // Fetch settings for loan info
+      // Date range from inputs (fallback: this month)
+      const now=new Date();
+      const fdsEl=document.getElementById('auditFrom');
+      const tdsEl=document.getElementById('auditTo');
+      const fromDs=fdsEl?.value||localDate(new Date(now.getFullYear(),now.getMonth(),1));
+      const toDs=tdsEl?.value||localDate(now);
+
+      // Period label for report
+      const isLifetime=fromDs<='2020-01-02';
+      const fmtD=ds=>{ const[y,m,d]=ds.split('-'); const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return`${parseInt(d)} ${mn[parseInt(m)-1]} ${y}`; };
+      const periodStr=isLifetime?`Lifetime (Up to ${fmtD(toDs)})`:`${fmtD(fromDs)} — ${fmtD(toDs)}`;
+
+      // Fetch settings
       const cfgSnap=await window.db.collection('settings').doc('config').get();
       const cfg=cfgSnap.exists?cfgSnap.data():{};
       const loanBase=cfg.loanBase||602500;
-      const resetPass=cfg.resetPassword;
 
-      // Lifetime metrics
+      // ── P&L: filtered by selected period ──
       const costMap={};allProducts.forEach(p=>{if(p.name)costMap[p.name.trim().toLowerCase()]=p.buyPrice||0;});
-      const activeSales=allSales.filter(s=>s.status!=='Returned');
+      const activeSales=allSales.filter(s=>{ const ds=parseDs(s.date); return ds>=fromDs&&ds<=toDs&&s.status!=='Returned'; });
       const totalRev=activeSales.reduce((s,d)=>s+(d.total||0),0);
-      const totalCOGS=activeSales.reduce((s,d)=>{const bp=costMap[(d.product||'').trim().toLowerCase()]||d.buyPrice||0;return s+(d.qty||0)*bp;},0);
-      const paidExp=allExpenses.filter(e=>e.status==='Paid'||e.category==='Meta/Facebook Ads');
+      const totalCOGS=activeSales.reduce((s,d)=>{ const bp=costMap[(d.product||'').trim().toLowerCase()]||d.buyPrice||0; return s+(d.qty||0)*bp; },0);
+      const paidExp=allExpenses.filter(e=>{ const ds=parseDs(e.date); return ds>=fromDs&&ds<=toDs&&(e.status==='Paid'||e.category==='Meta/Facebook Ads'); });
       const totalExp=paidExp.reduce((s,d)=>s+(d.amount||0),0);
       const adCost=paidExp.filter(e=>(e.category||'').match(/facebook|meta/i)).reduce((s,d)=>s+(d.amount||0),0);
       const otherExp=totalExp-adCost;
@@ -601,88 +645,96 @@ async function dlImg(){
       const grossMargin=totalRev>0?(grossProfit/totalRev*100).toFixed(1):0;
       const netMargin=totalRev>0?(netProfit/totalRev*100).toFixed(1):0;
 
-      // Balance sheet
-      const cashIn=allCash.filter(e=>(e.cashIn||0)>0).reduce((s,e)=>s+(e.cashIn||0),0);
-      const cashOut=allCash.filter(e=>(e.cashOut||0)>0).reduce((s,e)=>s+(e.cashOut||0),0);
-      const cashInHand=(window.appSettings?.openingCash||0)+cashIn-cashOut;
+      // ── Balance Sheet: always current state (as of today) ──
+      const cashInSum=allCash.filter(e=>(e.cashIn||0)>0).reduce((s,e)=>s+(e.cashIn||0),0);
+      const cashOutSum=allCash.filter(e=>(e.cashOut||0)>0).reduce((s,e)=>s+(e.cashOut||0),0);
+      const cashInHand=(window.appSettings?.openingCash||0)+cashInSum-cashOutSum;
       const stockVal=allProducts.reduce((s,p)=>s+(p.currentStock||0)*(p.buyPrice||0),0);
       const custDue=(await window.db.collection('customers').get()).docs.reduce((s,d)=>s+(d.data().totalCod||0),0);
       const suppDue=(await window.db.collection('suppliers').get()).docs.reduce((s,d)=>s+(d.data().currentDue||0),0);
       const totalAssets=cashInHand+stockVal+custDue;
       const netCapital=totalAssets-suppDue;
 
-      // Capital growth
+      // ── Capital & Loan: lifetime ──
       const totalInv=allCash.filter(e=>e.type==='Investment'||e.category==='Investment').reduce((s,e)=>s+(e.cashIn||e.amount||0),0)||window.appSettings?.totalInvestment||loanBase;
       const capitalGrowth=netCapital-totalInv;
       const roi=totalInv>0?(capitalGrowth/totalInv*100).toFixed(1):0;
-
-      // Loan recovery
       const loanRecovered=allExpenses.filter(e=>e.category==='Loan Adjustment'&&(e.status==='Paid'||!e.status)).reduce((s,d)=>s+(d.amount||0),0);
       const loanPct=loanBase>0?(loanRecovered/loanBase*100).toFixed(1):0;
       const loanRemaining=Math.max(0,loanBase-loanRecovered);
 
-      // Self-funding
-      const now=new Date();const bizStart=window.appSettings?.businessStart?new Date(window.appSettings.businessStart):new Date('2026-01-01');
-      const monthsOld=Math.max(1,((now-bizStart)/(1000*60*60*24*30.5)));
-      const avgMonthlyRev=totalRev/monthsOld;const avgMonthlyExp=(totalCOGS+totalExp)/monthsOld;
-      const avgMonthlyProfit=netProfit/monthsOld;
+      // ── Self-funding (based on selected period) ──
+      const fromDate=new Date(fromDs+'T00:00:00'),toDate=new Date(toDs+'T00:00:00');
+      const daysDiff=Math.max(1,Math.ceil((toDate-fromDate)/86400000)+1);
+      const monthsDiff=Math.max(1,daysDiff/30.5);
+      const avgMonthlyRev=totalRev/monthsDiff;
+      const avgMonthlyExp=(totalCOGS+totalExp)/monthsDiff;
+      const avgMonthlyProfit=netProfit/monthsDiff;
       const cashRunway=avgMonthlyExp>0?(cashInHand/avgMonthlyExp).toFixed(1):0;
       const selfFundable=avgMonthlyProfit>0;
 
-      // Product performance
+      // ── Product performance (selected period) ──
       const perfMap={};activeSales.forEach(s=>{const p=s.product||'Unknown';if(!perfMap[p])perfMap[p]={rev:0,qty:0};perfMap[p].rev+=s.total||0;perfMap[p].qty+=s.qty||0;});
       const topProds=Object.entries(perfMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,5);
 
       const today=new Date().toLocaleDateString('en-BD',{day:'2-digit',month:'long',year:'numeric'});
-      const periodStr=`Lifetime (Up to ${today})`;
 
       // Build report HTML
       const html=`<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><title>GentiX Business Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;padding:0}
-  .page{max-width:900px;margin:0 auto;padding:32px 40px}
+  body{font-family:'Inter','Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;padding:0}
+  .tk{font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  .page{max-width:920px;margin:0 auto;padding:32px 40px}
   h1{font-size:22px;font-weight:800;color:#1e3a5f;letter-spacing:-0.5px}
   h2{font-size:13px;font-weight:600;color:#475569;margin-top:2px}
-  .header{border-bottom:3px solid #1e3a5f;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end}
-  .header-right{text-align:right;font-size:11px;color:#64748b;line-height:1.8}
+  .hdr{border-bottom:3px solid #1e3a5f;padding-bottom:16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+  .hdr-right{text-align:right;font-size:11px;color:#64748b;line-height:1.9}
+  .period-badge{display:inline-block;background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;margin-top:5px}
   .section{margin-bottom:22px}
-  .section-title{background:#1e3a5f;color:#fff;padding:7px 14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-radius:4px;margin-bottom:10px}
+  .section-title{background:#1e3a5f;color:#fff;padding:7px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-radius:4px;margin-bottom:10px}
   table{width:100%;border-collapse:collapse}
   td,th{padding:7px 12px;border:1px solid #e2e8f0;font-size:12px}
-  th{background:#f8fafc;font-weight:700;color:#374151}
-  .total-row td{background:#f0f9ff;font-weight:800;font-size:13px}
-  .profit-row td{background:#f0fdf4;color:#166534;font-weight:800;font-size:14px}
-  .loss-row td{background:#fef2f2;color:#991b1b;font-weight:800;font-size:14px}
+  th{background:#f1f5f9;font-weight:700;color:#374151}
+  .total-row td{background:#eff6ff;font-weight:800;font-size:13px}
+  .profit-row td{background:#f0fdf4;color:#166534;font-weight:800;font-size:13px}
+  .loss-row td{background:#fef2f2;color:#991b1b;font-weight:800;font-size:13px}
   .right{text-align:right}.center{text-align:center}
   .indent{padding-left:28px!important;color:#475569}
   .progress-bar{height:12px;background:#e2e8f0;border-radius:6px;overflow:hidden;margin:4px 0}
   .progress-fill{height:100%;border-radius:6px}
-  .metric-card{display:inline-block;border:1px solid #e2e8f0;border-radius:8px;padding:10px 16px;margin:4px;min-width:160px;vertical-align:top}
-  .metric-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase}
-  .metric-value{font-size:18px;font-weight:800;color:#1e3a5f;margin-top:2px}
-  .green{color:#166534} .red{color:#991b1b} .blue{color:#1e40af}
-  .footer{border-top:2px solid #e2e8f0;padding-top:16px;margin-top:24px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
-  .stamp{border:2px solid #1e3a5f;border-radius:50%;width:80px;height:80px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#1e3a5f;text-align:center;line-height:1.2}
-  @media print{body{padding:0}.no-print{display:none}@page{margin:1cm;size:A4}}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px}
+  .kpi-card{border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;border-left:4px solid}
+  .kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-val{font-size:19px;font-weight:800;margin-top:3px;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  .cash-highlight{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #4ade80;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+  .green{color:#166534}.red{color:#991b1b}.blue{color:#1e40af}
+  .footer{border-top:2px solid #e2e8f0;padding-top:14px;margin-top:20px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between;align-items:center}
+  .stamp{border:2px solid #1e3a5f;border-radius:50%;width:72px;height:72px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#1e3a5f;text-align:center;line-height:1.3}
+  .no-print{background:#1e3a5f;color:#fff;padding:12px 40px;display:flex;gap:10px;align-items:center}
+  .btn-w{background:#fff;color:#1e3a5f;border:none;padding:8px 20px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  .btn-g{background:#22c55e;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  @media print{.no-print{display:none}@page{margin:1cm;size:A4}}
 </style>
 </head><body>
-<div style="background:#1e3a5f;color:#fff;padding:12px 40px;text-align:center;font-size:11px;font-weight:600" class="no-print">
-  <button onclick="window.print()" style="background:#fff;color:#1e3a5f;border:none;padding:8px 20px;border-radius:6px;font-weight:800;cursor:pointer;margin-right:10px">🖨️ Save as PDF (Print)</button>
-  <button onclick="downloadImage()" style="background:#22c55e;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-weight:800;cursor:pointer">📷 Download as Image</button>
+<div class="no-print">
+  <button class="btn-w" onclick="window.print()">🖨️ Save as PDF (Print)</button>
+  <button class="btn-g" onclick="dlImg()">📷 Download as Image</button>
+  <span style="font-size:11px;opacity:.6;margin-left:8px">Print dialog খুলে "Save as PDF" বেছে নিন</span>
 </div>
 <div class="page" id="report-body">
 
   <!-- Header -->
-  <div class="header">
+  <div class="hdr">
     <div>
-      <div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Prepared by</div>
+      <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Prepared by</div>
       <h1>GentiX Fashion ERP</h1>
       <h2>Business Performance & Financial Report</h2>
-      <div style="font-size:11px;color:#64748b;margin-top:4px">${periodStr}</div>
+      <div class="period-badge">📅 ${periodStr}</div>
     </div>
-    <div class="header-right">
+    <div class="hdr-right">
       <div><strong>Report Date:</strong> ${today}</div>
       <div><strong>Report Type:</strong> Management Accounts</div>
       <div><strong>Business:</strong> Dr. Suman — Polo Shirt</div>
@@ -690,52 +742,62 @@ async function dlImg(){
     </div>
   </div>
 
+  <!-- Cash in Hand highlight -->
+  <div class="cash-highlight">
+    <div style="background:#4ade80;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">💵</div>
+    <div style="flex:1">
+      <div style="font-size:10px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">Cash in Hand (Current Balance)</div>
+      <div style="font-size:26px;font-weight:800;color:#166534;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif">${fmt(cashInHand)}</div>
+      <div style="font-size:11px;color:#4ade80aa;margin-top:2px">Opening: ${fmt(window.appSettings?.openingCash||0)} &nbsp;|&nbsp; Total In: ${fmt(cashInSum)} &nbsp;|&nbsp; Total Out: ${fmt(cashOutSum)}</div>
+    </div>
+  </div>
+
   <!-- Quick KPIs -->
   <div class="section">
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-      ${[[fmt(totalRev),'Total Revenue','#166534'],[fmt(totalCOGS),'Total COGS','#1e40af'],[fmt(totalExp),'Operating Exp','#b45309'],[netProfit>=0?fmt(netProfit):'('+fmt(Math.abs(netProfit))+')','Net Profit',netProfit>=0?'#166534':'#991b1b'],[roi+'%','Business ROI',parseFloat(roi)>=0?'#166534':'#991b1b'],[fmt(netCapital),'Net Capital','#1e3a5f']].map(([v,l,c])=>`
-      <div class="metric-card"><div class="metric-label">${l}</div><div class="metric-value" style="color:${c}">${v}</div></div>`).join('')}
+    <div class="kpi-grid">
+      ${[[fmt(totalRev),'Total Revenue','#166534','#f0fdf4'],[fmt(totalCOGS),'Total COGS','#1e40af','#eff6ff'],[fmt(totalExp),'Total Expenses','#b45309','#fffbeb'],[netProfit>=0?fmt(netProfit):'('+fmt(Math.abs(netProfit))+')','Net Profit',netProfit>=0?'#166534':'#991b1b',netProfit>=0?'#f0fdf4':'#fef2f2'],[roi+'%','Lifetime ROI',parseFloat(roi)>=0?'#166534':'#991b1b','#eff6ff'],[fmt(netCapital),'Net Capital','#1e3a5f','#f8fafc']].map(([v,l,c,bg])=>`
+      <div class="kpi-card" style="border-left-color:${c};background:${bg}"><div class="kpi-label">${l}</div><div class="kpi-val" style="color:${c}">${v}</div></div>`).join('')}
     </div>
   </div>
 
   <!-- 1. Income Statement -->
   <div class="section">
-    <div class="section-title">1. Income Statement (Profit & Loss)</div>
+    <div class="section-title">1. Income Statement (P&L) — ${periodStr}</div>
     <table>
-      <tr><th>Particulars</th><th class="right">Amount (৳)</th><th class="right">% of Revenue</th></tr>
-      <tr><td><strong>Gross Revenue (Sales)</strong></td><td class="right"><strong>${fmt(totalRev)}</strong></td><td class="right">100%</td></tr>
-      <tr><td class="indent">Less: Cost of Goods Sold (COGS)</td><td class="right">(${fmt(totalCOGS)})</td><td class="right">${totalRev>0?(totalCOGS/totalRev*100).toFixed(1):0}%</td></tr>
-      <tr class="total-row"><td><strong>Gross Profit</strong></td><td class="right green"><strong>${fmt(grossProfit)}</strong></td><td class="right green"><strong>${grossMargin}%</strong></td></tr>
-      <tr><td class="indent">Less: FB / Meta Ad Spend</td><td class="right">(${fmt(adCost)})</td><td class="right">${totalRev>0?(adCost/totalRev*100).toFixed(1):0}%</td></tr>
-      <tr><td class="indent">Less: Other Operating Expenses</td><td class="right">(${fmt(otherExp)})</td><td class="right">${totalRev>0?(otherExp/totalRev*100).toFixed(1):0}%</td></tr>
-      <tr class="${netProfit>=0?'profit-row':'loss-row'}"><td><strong>NET PROFIT ${netProfit<0?'(LOSS)':''}</strong></td><td class="right"><strong>${netProfit>=0?fmt(netProfit):'('+fmt(Math.abs(netProfit))+')'}</strong></td><td class="right"><strong>${netMargin}%</strong></td></tr>
+      <tr><th>Particulars</th><th class="right"><span class="tk">Amount (৳)</span></th><th class="right">% of Revenue</th></tr>
+      <tr><td><strong>Gross Revenue (Sales)</strong></td><td class="right tk"><strong>${fmt(totalRev)}</strong></td><td class="right">100%</td></tr>
+      <tr><td class="indent">Less: Cost of Goods Sold (COGS)</td><td class="right tk">(${fmt(totalCOGS)})</td><td class="right">${totalRev>0?(totalCOGS/totalRev*100).toFixed(1):0}%</td></tr>
+      <tr class="total-row"><td><strong>Gross Profit</strong></td><td class="right tk green"><strong>${fmt(grossProfit)}</strong></td><td class="right green"><strong>${grossMargin}%</strong></td></tr>
+      <tr><td class="indent">Less: FB / Meta Ad Spend</td><td class="right tk">(${fmt(adCost)})</td><td class="right">${totalRev>0?(adCost/totalRev*100).toFixed(1):0}%</td></tr>
+      <tr><td class="indent">Less: Other Operating Expenses</td><td class="right tk">(${fmt(otherExp)})</td><td class="right">${totalRev>0?(otherExp/totalRev*100).toFixed(1):0}%</td></tr>
+      <tr class="${netProfit>=0?'profit-row':'loss-row'}"><td><strong>NET PROFIT ${netProfit<0?'(LOSS)':''}</strong></td><td class="right tk"><strong>${netProfit>=0?fmt(netProfit):'('+fmt(Math.abs(netProfit))+')'}</strong></td><td class="right"><strong>${netMargin}%</strong></td></tr>
     </table>
   </div>
 
   <!-- 2. Balance Sheet -->
   <div class="section">
-    <div class="section-title">2. Balance Sheet (As of ${today})</div>
+    <div class="section-title">2. Balance Sheet — Current Position (As of ${today})</div>
     <table>
-      <tr><th colspan="2">ASSETS</th><th class="right">Amount (৳)</th></tr>
-      <tr><td colspan="2" class="indent">Cash in Hand</td><td class="right">${fmt(cashInHand)}</td></tr>
-      <tr><td colspan="2" class="indent">Stock / Inventory Value</td><td class="right">${fmt(stockVal)}</td></tr>
-      <tr><td colspan="2" class="indent">Customer Receivables (COD Due)</td><td class="right">${fmt(custDue)}</td></tr>
-      <tr class="total-row"><td colspan="2"><strong>TOTAL ASSETS</strong></td><td class="right blue"><strong>${fmt(totalAssets)}</strong></td></tr>
+      <tr><th colspan="2">ASSETS</th><th class="right"><span class="tk">Amount (৳)</span></th></tr>
+      <tr style="background:#f0fdf4"><td colspan="2"><strong>💵 Cash in Hand</strong></td><td class="right tk green"><strong>${fmt(cashInHand)}</strong></td></tr>
+      <tr><td colspan="2" class="indent">Stock / Inventory Value</td><td class="right tk">${fmt(stockVal)}</td></tr>
+      <tr><td colspan="2" class="indent">Customer Receivables (COD Due)</td><td class="right tk">${fmt(custDue)}</td></tr>
+      <tr class="total-row"><td colspan="2"><strong>TOTAL ASSETS</strong></td><td class="right tk blue"><strong>${fmt(totalAssets)}</strong></td></tr>
       <tr><th colspan="2">LIABILITIES</th><th></th></tr>
-      <tr><td colspan="2" class="indent">Supplier Payables (Due)</td><td class="right">${fmt(suppDue)}</td></tr>
-      <tr class="total-row"><td colspan="2"><strong>TOTAL LIABILITIES</strong></td><td class="right red"><strong>${fmt(suppDue)}</strong></td></tr>
-      <tr class="${netCapital>=0?'profit-row':'loss-row'}"><td colspan="2"><strong>NET CAPITAL (EQUITY)</strong></td><td class="right"><strong>${fmt(netCapital)}</strong></td></tr>
+      <tr><td colspan="2" class="indent">Supplier Payables (Due)</td><td class="right tk">${fmt(suppDue)}</td></tr>
+      <tr class="total-row"><td colspan="2"><strong>TOTAL LIABILITIES</strong></td><td class="right tk red"><strong>${fmt(suppDue)}</strong></td></tr>
+      <tr class="${netCapital>=0?'profit-row':'loss-row'}"><td colspan="2"><strong>NET CAPITAL (EQUITY)</strong></td><td class="right tk"><strong>${fmt(netCapital)}</strong></td></tr>
     </table>
   </div>
 
   <!-- 3. Capital Growth -->
   <div class="section">
-    <div class="section-title">3. Capital Growth Analysis</div>
+    <div class="section-title">3. Capital Growth Analysis — Lifetime</div>
     <table>
-      <tr><th>Particulars</th><th class="right">Amount (৳)</th><th class="right">Notes</th></tr>
-      <tr><td>Total Investment Made</td><td class="right">${fmt(totalInv)}</td><td>Personal + Loan capital</td></tr>
-      <tr><td>Current Net Capital</td><td class="right">${fmt(netCapital)}</td><td>Assets − Liabilities</td></tr>
-      <tr class="${capitalGrowth>=0?'profit-row':'loss-row'}"><td><strong>Capital Growth / (Erosion)</strong></td><td class="right"><strong>${capitalGrowth>=0?'+':'-'}${fmt(Math.abs(capitalGrowth))}</strong></td><td><strong>ROI: ${roi}%</strong></td></tr>
+      <tr><th>Particulars</th><th class="right"><span class="tk">Amount (৳)</span></th><th class="right">Notes</th></tr>
+      <tr><td>Total Investment Made</td><td class="right tk">${fmt(totalInv)}</td><td>Personal + Loan capital</td></tr>
+      <tr><td>Current Net Capital</td><td class="right tk">${fmt(netCapital)}</td><td>Assets − Liabilities</td></tr>
+      <tr class="${capitalGrowth>=0?'profit-row':'loss-row'}"><td><strong>Capital Growth / (Erosion)</strong></td><td class="right tk"><strong>${capitalGrowth>=0?'+':'-'}${fmt(Math.abs(capitalGrowth))}</strong></td><td><strong>ROI: ${roi}%</strong></td></tr>
     </table>
     <div style="margin-top:10px;padding:10px;background:#f0f9ff;border-radius:6px;font-size:12px">
       <strong>Verdict:</strong> ${capitalGrowth>=0?`Business capital grew by ${fmt(capitalGrowth)} (${roi}% ROI). Investment is generating positive returns.`:`Business capital reduced by ${fmt(Math.abs(capitalGrowth))}. Needs attention to recover original investment.`}
@@ -744,11 +806,11 @@ async function dlImg(){
 
   <!-- 4. Loan Recovery -->
   <div class="section">
-    <div class="section-title">4. Loan Recovery Progress</div>
+    <div class="section-title">4. Loan Recovery Progress — Lifetime</div>
     <table>
-      <tr><td><strong>Original Loan / Base Investment</strong></td><td class="right">${fmt(loanBase)}</td></tr>
-      <tr><td>Amount Recovered (via Loan Adjustment expenses)</td><td class="right green">${fmt(loanRecovered)}</td></tr>
-      <tr><td>Remaining to Recover</td><td class="right ${loanRemaining>0?'red':'green'}">${fmt(loanRemaining)}</td></tr>
+      <tr><td><strong>Original Loan / Base Investment</strong></td><td class="right tk">${fmt(loanBase)}</td></tr>
+      <tr><td>Amount Recovered (via Loan Adjustment expenses)</td><td class="right tk green">${fmt(loanRecovered)}</td></tr>
+      <tr><td>Remaining to Recover</td><td class="right tk ${loanRemaining>0?'red':'green'}">${fmt(loanRemaining)}</td></tr>
     </table>
     <div style="margin-top:8px">
       <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px">
@@ -760,12 +822,12 @@ async function dlImg(){
 
   <!-- 5. Self-Funding Capability -->
   <div class="section">
-    <div class="section-title">5. Business Self-Funding Capability</div>
+    <div class="section-title">5. Business Self-Funding Capability — ${periodStr}</div>
     <table>
       <tr><th>Metric</th><th class="right">Value</th><th>Interpretation</th></tr>
-      <tr><td>Avg Monthly Revenue</td><td class="right">${fmt(Math.round(avgMonthlyRev))}</td><td>Based on ${Math.round(monthsOld)} months operation</td></tr>
-      <tr><td>Avg Monthly Total Cost</td><td class="right">${fmt(Math.round(avgMonthlyExp))}</td><td>COGS + Operating Expenses</td></tr>
-      <tr><td>Avg Monthly Net Profit</td><td class="right ${avgMonthlyProfit>=0?'green':'red'}">${avgMonthlyProfit>=0?'+':''}${fmt(Math.round(avgMonthlyProfit))}</td><td>${avgMonthlyProfit>=0?'Generating surplus each month':'Monthly deficit — needs attention'}</td></tr>
+      <tr><td>Avg Monthly Revenue</td><td class="right tk">${fmt(Math.round(avgMonthlyRev))}</td><td>Based on ${monthsDiff.toFixed(1)} months in selected period</td></tr>
+      <tr><td>Avg Monthly Total Cost</td><td class="right tk">${fmt(Math.round(avgMonthlyExp))}</td><td>COGS + Operating Expenses</td></tr>
+      <tr><td>Avg Monthly Net Profit</td><td class="right tk ${avgMonthlyProfit>=0?'green':'red'}">${avgMonthlyProfit>=0?'+':''}${fmt(Math.round(avgMonthlyProfit))}</td><td>${avgMonthlyProfit>=0?'Generating surplus each month':'Monthly deficit — needs attention'}</td></tr>
       <tr><td>Cash Runway</td><td class="right blue">${cashRunway} months</td><td>Current cash can sustain ${cashRunway} months of expenses</td></tr>
       <tr class="${selfFundable?'profit-row':'loss-row'}"><td><strong>Self-Funding Status</strong></td><td class="right"><strong>${selfFundable?'✓ CAPABLE':'✗ NOT YET'}</strong></td><td><strong>${selfFundable?'Business runs on its own profits':'Requires external capital support'}</strong></td></tr>
     </table>
@@ -773,10 +835,10 @@ async function dlImg(){
 
   <!-- 6. Top Products -->
   <div class="section">
-    <div class="section-title">6. Product Performance Summary</div>
+    <div class="section-title">6. Product Performance — ${periodStr}</div>
     <table>
-      <tr><th>Product</th><th class="right">Units Sold</th><th class="right">Revenue</th><th class="right">Share</th></tr>
-      ${topProds.map(([name,d])=>`<tr><td>${name}</td><td class="right">${d.qty.toLocaleString()}</td><td class="right">${fmt(d.rev)}</td><td class="right">${totalRev>0?(d.rev/totalRev*100).toFixed(1):0}%</td></tr>`).join('')}
+      <tr><th>Product</th><th class="right">Units Sold</th><th class="right"><span class="tk">Revenue (৳)</span></th><th class="right">Share</th></tr>
+      ${topProds.length?topProds.map(([name,d])=>`<tr><td>${name}</td><td class="right">${d.qty.toLocaleString()}</td><td class="right tk">${fmt(d.rev)}</td><td class="right">${totalRev>0?(d.rev/totalRev*100).toFixed(1):0}%</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:14px">No sales data for selected period</td></tr>'}
     </table>
   </div>
 
@@ -910,5 +972,5 @@ async function downloadImage(){
     }, 100);
   }
 
-  return{load,setPeriod,runComparison,toggleCustom,generateAuditReport,toggleMonthPicker,setPickMonth,printBreakdown};
+  return{load,setPeriod,runComparison,toggleCustom,generateAuditReport,toggleMonthPicker,setPickMonth,printBreakdown,setAuditPreset};
 })();
