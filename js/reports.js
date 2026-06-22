@@ -410,7 +410,7 @@ const reportsModule = (() => {
         ['barCogs','barOpex','barProfit'].forEach((id,i)=>{ const el=document.getElementById(id);if(el)el.style.width=[cogsPct,opexPct,profPct][i].toFixed(1)+'%';});
         setEl('healthMarginVal',profPct.toFixed(1)+'% Profit');
         const totalSavings=expSnap.docs.map(d=>d.data()).filter(e=>e.category==='Savings'&&(e.status==='Paid'||!e.status)).reduce((s,e)=>s+(e.amount||0),0);
-        const avgMargin=totalSales>0?(((totalSales-totalCOGS)/totalSales)*100).toFixed(1):'0.0';
+        const avgMargin=totalSales>0?((netProfit/totalSales)*100).toFixed(1):'0.0';
         const savEl=document.getElementById('healthSavingsAmt');
         if(savEl){savEl.textContent=avgMargin+'%';savEl.dataset.s=fmt(totalSavings);savEl.dataset.orig=avgMargin+'%';}
         const assetTotal=cashInHand+stockValue;
