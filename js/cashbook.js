@@ -25,12 +25,16 @@ const cashbookModule = (() => {
 
   function renderLayout() {
     document.getElementById('section-cashbook').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:1.2rem">
+    <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:1.2rem">
       <div class="table-card" style="border-top:5px solid #00acc1">
         <div style="padding:20px">
           <h5 style="color:#00acc1;font-weight:700;margin-bottom:18px"><i class="bi bi-cash-stack"></i> Cash Transaction</h5>
           <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">Transaction Type</label>
+            <label class="form-label">Date *</label>
+            <input type="date" id="cbDate" class="form-control" value="${todayStr()}">
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Transaction Type *</label>
             <select id="transType" class="form-control" onchange="cashbookModule.toggleRefList()">
               <option value="Customer">Customer Collection (Cash In)</option>
               <option value="Investment">Owner Investment (Cash In)</option>
@@ -43,35 +47,25 @@ const cashbookModule = (() => {
             <select id="refId" class="form-control"><option value="">-- Select --</option></select>
           </div>
           <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">Transaction Date</label>
-            <input type="date" id="cbDate" class="form-control" value="${todayStr()}">
-          </div>
-          <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Particulars / Note</label>
             <input type="text" id="particulars" class="form-control" placeholder="e.g. Monthly Rent or Initial Capital">
           </div>
           <div class="form-group" style="margin-bottom:14px">
-            <label id="amtLabel" class="form-label">Collection Amount (Cash In)</label>
+            <label id="amtLabel" class="form-label">Amount (৳) *</label>
             <input type="number" id="cbAmount" class="form-control" min="1" step="0.01">
           </div>
-          <button id="cashSubmitBtn" onclick="cashbookModule.save()" class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;background:#00acc1;justify-content:center">
-            <i class="bi bi-save"></i> Save Transaction
+          <button id="cashSubmitBtn" onclick="cashbookModule.save()" class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;background:#00acc1;border-color:#00acc1;justify-content:center">
+            <i class="bi bi-check-circle"></i> Save Transaction
           </button>
         </div>
       </div>
       <div class="table-card">
         <div style="padding:13px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
           <h5 style="font-weight:700;color:#6b7280;margin:0"><i class="bi bi-journal-text"></i> Cash Ledger</h5>
-          <div id="cb-balance-pill" style="font-size:13px;font-weight:700;background:#d1fae5;color:#065f46;padding:5px 14px;border-radius:20px">Balance: ৳0</div>
-        </div>
-        <div style="padding:10px 14px;border-bottom:1px solid #f3f4f6;background:#f8fafc;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="date" id="cb-from" class="form-control" style="width:138px;font-size:12px;padding:5px 8px" onchange="cashbookModule.applyFilter()">
-          <span style="color:#9ca3af;font-size:12px;font-weight:600">—</span>
-          <input type="date" id="cb-to" class="form-control" style="width:138px;font-size:12px;padding:5px 8px" onchange="cashbookModule.applyFilter()">
-          <button onclick="cashbookModule.setFilterPreset('today')" class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 10px">Today</button>
-          <button onclick="cashbookModule.setFilterPreset('thisWeek')" class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 10px">This Week</button>
-          <button onclick="cashbookModule.setFilterPreset('thisMonth')" class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 10px">This Month</button>
-          <button onclick="cashbookModule.setFilterPreset('all')" class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 10px">All</button>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div id="cb-balance-pill" style="font-size:13px;font-weight:700;background:#d1fae5;color:#065f46;padding:5px 14px;border-radius:20px">Balance: ৳0</div>
+            <button class="btn btn-outline btn-sm" onclick="cashbookModule.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
+          </div>
         </div>
         <div id="cb-table-wrapper" style="overflow-x:auto"><div class="loading-state">Loading…</div></div>
         <div style="padding:10px 16px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
@@ -167,24 +161,17 @@ const cashbookModule = (() => {
     if(pill){pill.textContent='Balance: '+fmt(balance);pill.style.background=balance>=0?'#d1fae5':'#fee2e2';pill.style.color=balance>=0?'#065f46':'#991b1b';}
   }
 
-  function getFiltered(){
-    if(!filterFrom&&!filterTo)return allEntries;
-    return allEntries.filter(e=>{const ds=(e.date||'').substring(0,10);return(!filterFrom||ds>=filterFrom)&&(!filterTo||ds<=filterTo);});
-  }
-
   function renderTable() {
-    const filtered = getFiltered();
     const w = document.getElementById('cb-table-wrapper');
     if (!w) return;
-    const tp = Math.ceil(filtered.length/PER_PAGE);
-    const page = filtered.slice((curPage-1)*PER_PAGE,curPage*PER_PAGE);
-    if (!page.length){w.innerHTML='<div class="empty-state"><div class="empty-icon">📒</div><p>No entries for selected period</p></div>';updatePagination(0,0,filtered.length);return;}
-    // Running balance from ALL entries (cumulative, not filtered)
+    const tp = Math.ceil(allEntries.length/PER_PAGE);
+    const page = allEntries.slice((curPage-1)*PER_PAGE,curPage*PER_PAGE);
+    if (!page.length){w.innerHTML='<div class="empty-state"><div class="empty-icon">📒</div><p>No cash entries yet</p></div>';updatePagination(0);return;}
+    // Running balance
     const opening = window.appSettings?.openingCash||0;
     let run = opening;
-    const balMap = {};
-    [...allEntries].reverse().forEach(e=>{run+=(e.cashIn||0)-(e.cashOut||0);balMap[e.id]=run;});
-    const pageWB = page.map(e=>({...e,bal:balMap[e.id]||0}));
+    const withBal = [...allEntries].reverse().map(e=>{run+=(e.cashIn||0)-(e.cashOut||0);return{...e,bal:run};}).reverse();
+    const pageWB = withBal.slice((curPage-1)*PER_PAGE,curPage*PER_PAGE);
     w.innerHTML=`<table class="data-table"><thead><tr>
       <th>Date</th><th>Note</th><th style="text-align:right;color:#27ae60">Cash In</th>
       <th style="text-align:right;color:#e74c3c">Cash Out</th><th style="text-align:right">Balance</th><th>Actions</th>
@@ -200,34 +187,16 @@ const cashbookModule = (() => {
       </td>
     </tr>`).join('')}
     </tbody></table>`;
-    updatePagination(tp, filtered.length, allEntries.length);
+    updatePagination(tp);
   }
 
-  function updatePagination(tp, shown, total){
+  function updatePagination(tp){
     const i=document.getElementById('cashPageInfo'),p=document.getElementById('cashPrevBtn'),nx=document.getElementById('cashNextBtn');
-    const isFiltered = shown !== undefined && total !== undefined && shown < total;
-    if(i)i.textContent=isFiltered?`Page ${curPage} of ${tp||1} · ${shown} of ${total} entries`:`Page ${curPage} of ${tp||1}`;
+    if(i)i.textContent=`Page ${curPage} of ${tp||1}`;
     if(p)p.disabled=curPage===1;if(nx)nx.disabled=curPage===tp||tp===0;
   }
-  function changePage(step){const filtered=getFiltered();const tp=Math.ceil(filtered.length/PER_PAGE),np=curPage+step;if(np>=1&&np<=tp){curPage=np;renderTable();}}
+  function changePage(step){const tp=Math.ceil(allEntries.length/PER_PAGE),np=curPage+step;if(np>=1&&np<=tp){curPage=np;renderTable();}}
+  async function refresh(){await fetchEntries();}
 
-  function setFilterPreset(type){
-    const now=new Date();
-    const ld=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    let from='',to=ld(now);
-    if(type==='today'){from=ld(now);}
-    else if(type==='thisWeek'){const d=new Date(now);d.setDate(d.getDate()-((d.getDay()||7)-1));from=ld(d);}
-    else if(type==='thisMonth'){from=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;}
-    else{from='';to='';}
-    const fEl=document.getElementById('cb-from'),tEl=document.getElementById('cb-to');
-    if(fEl)fEl.value=from;if(tEl)tEl.value=to;
-    filterFrom=from;filterTo=to;curPage=1;renderTable();
-  }
-
-  function applyFilter(){
-    const fEl=document.getElementById('cb-from'),tEl=document.getElementById('cb-to');
-    filterFrom=fEl?.value||'';filterTo=tEl?.value||'';curPage=1;renderTable();
-  }
-
-  return {load,toggleRefList,save,del,changePage,applyFilter,setFilterPreset};
+  return {load,toggleRefList,save,del,changePage,refresh};
 })();
