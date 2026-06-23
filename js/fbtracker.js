@@ -68,8 +68,10 @@ const fbModule = (() => {
             <div style="flex:1;min-width:120px"><label class="form-label" style="font-size:11px">From</label><input type="date" id="fbStartDate" class="form-control" style="padding:6px 10px;font-size:13px"></div>
             <div style="flex:1;min-width:120px"><label class="form-label" style="font-size:11px">To</label><input type="date" id="fbEndDate" class="form-control" style="padding:6px 10px;font-size:13px"></div>
             <button class="btn btn-primary btn-sm" onclick="fbModule.getFilteredReport()" style="padding:8px 14px">GENERATE</button>
+            <button class="btn btn-outline btn-sm" onclick="fbModule.printFbReport()" style="padding:8px 12px;font-size:12px" title="Print / Save as PDF or Image"><i class="bi bi-printer"></i> Print/Save</button>
           </div>
-          <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+          <div id="fb-summary-wrap" style="display:none;padding:10px 14px;border-bottom:2px solid #e9ecef;background:#f8fafc"></div>
+          <div style="overflow-x:auto;max-height:260px;overflow-y:auto">
             <table class="data-table"><thead><tr><th>Date</th><th>Ad Name</th><th style="text-align:right">USD</th><th style="text-align:right">BDT</th></tr></thead>
             <tbody id="reportTableBody"><tr><td colspan="4" style="text-align:center;padding:20px;color:#9ca3af">Select date range and click GENERATE</td></tr></tbody></table>
           </div>
@@ -267,22 +269,197 @@ const fbModule = (() => {
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
+  let _lastReportData = { start:'', end:'', filtered:[], adSummary:[] };
+
   async function getFilteredReport() {
     const start = document.getElementById('fbStartDate')?.value;
     const end   = document.getElementById('fbEndDate')?.value;
     if (!start||!end) { toast('Select date range','error'); return; }
     const body = document.getElementById('reportTableBody');
+    const summaryWrap = document.getElementById('fb-summary-wrap');
     if (body) body.innerHTML='<tr><td colspan="4" style="text-align:center;padding:12px;color:#9ca3af">Loading…</td></tr>';
-    // Re-fetch from Firestore to ensure fresh data
+    if (summaryWrap) summaryWrap.style.display='none';
+
     const snap = await window.db.collection('fbAdLogs').get();
     const allLogs = snap.docs.map(d=>({id:d.id,...d.data()}));
-    const filtered = allLogs.filter(l => (l.date||'').substring(0,10) >= start && (l.date||'').substring(0,10) <= end);
-    let tUSD = 0, tBDT = 0;
-    if (!filtered.length) { if(body) body.innerHTML='<tr><td colspan="4" style="text-align:center;padding:12px;color:#9ca3af">No data found</td></tr>'; return; }
-    if (body) body.innerHTML = filtered.map(r => { tUSD+=r.dailyUSD||0; tBDT+=r.totalBDT||0;
-      return `<tr><td>${r.date}</td><td style="font-weight:700">${r.adName}</td><td style="text-align:right">$${(r.dailyUSD||0).toFixed(2)}</td><td style="text-align:right;font-weight:700">৳${Math.round(r.totalBDT||0).toLocaleString()}</td></tr>`;
-    }).join('');
-    setEl('periodTotal', `$${tUSD.toFixed(2)}`); setEl('periodTotalBDT', `৳${Math.round(tBDT).toLocaleString()}`);
+    const filtered = allLogs.filter(l=>(l.date||'').substring(0,10)>=start&&(l.date||'').substring(0,10)<=end)
+                            .sort((a,b)=>a.date>b.date?-1:1);
+
+    if (!filtered.length) {
+      if(body) body.innerHTML='<tr><td colspan="4" style="text-align:center;padding:12px;color:#9ca3af">No data found</td></tr>';
+      if(summaryWrap) summaryWrap.style.display='none';
+      return;
+    }
+
+    // Per-ad summary
+    const adMap = {};
+    let tUSD=0, tBDT=0;
+    filtered.forEach(r=>{
+      tUSD+=r.dailyUSD||0; tBDT+=r.totalBDT||0;
+      if(!adMap[r.adName]) adMap[r.adName]={entries:0,usd:0,bdt:0};
+      adMap[r.adName].entries++; adMap[r.adName].usd+=r.dailyUSD||0; adMap[r.adName].bdt+=r.totalBDT||0;
+    });
+    const adSummary = Object.entries(adMap).sort((a,b)=>b[1].usd-a[1].usd);
+
+    // Store for print
+    _lastReportData = { start, end, filtered, adSummary, tUSD, tBDT };
+
+    // Render summary
+    if (summaryWrap) {
+      summaryWrap.style.display='block';
+      summaryWrap.innerHTML=`
+        <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Per-Ad Summary (${start} → ${end})</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:#212529;color:#fff">
+            <th style="padding:5px 10px;text-align:left">Ad Name</th>
+            <th style="padding:5px 10px;text-align:center">Entries</th>
+            <th style="padding:5px 10px;text-align:right">Total USD</th>
+            <th style="padding:5px 10px;text-align:right">Total BDT</th>
+          </tr></thead>
+          <tbody>
+            ${adSummary.map(([name,d])=>`<tr style="border-bottom:1px solid #e9ecef">
+              <td style="padding:5px 10px;font-weight:700">${name}</td>
+              <td style="padding:5px 10px;text-align:center">${d.entries}</td>
+              <td style="padding:5px 10px;text-align:right;color:#2563eb;font-weight:700">$${d.usd.toFixed(2)}</td>
+              <td style="padding:5px 10px;text-align:right;color:#e74c3c;font-weight:700">৳${Math.round(d.bdt).toLocaleString()}</td>
+            </tr>`).join('')}
+            <tr style="background:#fef3c7;font-weight:800">
+              <td style="padding:6px 10px">TOTAL</td>
+              <td style="padding:6px 10px;text-align:center">${filtered.length}</td>
+              <td style="padding:6px 10px;text-align:right;color:#2563eb">$${tUSD.toFixed(2)}</td>
+              <td style="padding:6px 10px;text-align:right;color:#e74c3c">৳${Math.round(tBDT).toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>`;
+    }
+
+    // Detail rows
+    if (body) body.innerHTML = filtered.map(r=>`<tr>
+      <td style="color:#6b7280;font-size:12px">${r.date}</td>
+      <td style="font-weight:700">${r.adName}</td>
+      <td style="text-align:right;color:#2563eb;font-weight:600">$${(r.dailyUSD||0).toFixed(2)}</td>
+      <td style="text-align:right;font-weight:700;color:#e74c3c">৳${Math.round(r.totalBDT||0).toLocaleString()}</td>
+    </tr>`).join('');
+
+    setEl('periodTotal',`$${tUSD.toFixed(2)}`); setEl('periodTotalBDT',`৳${Math.round(tBDT).toLocaleString()}`);
+  }
+
+  function printFbReport() {
+    const { start, end, filtered, adSummary, tUSD, tBDT } = _lastReportData;
+    if (!filtered||!filtered.length) { toast('আগে GENERATE করুন','error'); return; }
+    const today = new Date().toLocaleDateString('en-BD',{day:'2-digit',month:'long',year:'numeric'});
+    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fmtD=ds=>{if(!ds)return'';const[y,m,d]=ds.split('-');return`${parseInt(d)} ${mn[parseInt(m)-1]} ${y}`;};
+
+    const html=`<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><title>FB Ad Report ${start} to ${end}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff}
+  .page{max-width:900px;margin:0 auto;padding:32px 36px}
+  .hdr{border-bottom:3px solid #1e3a5f;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+  h1{font-size:20px;font-weight:800;color:#1e3a5f}
+  .period{display:inline-block;background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;border-radius:20px;padding:3px 14px;font-size:11px;font-weight:700;margin-top:5px}
+  .section{margin-bottom:22px}
+  .sec-title{background:#1e3a5f;color:#fff;padding:7px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-radius:4px;margin-bottom:10px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:left}
+  th.r{text-align:right}th.c{text-align:center}
+  td{padding:7px 12px;border-bottom:1px solid #e9ecef;font-size:12px}
+  tr:nth-child(even) td{background:#f8fafc}
+  .total-row td{background:#fef3c7;font-weight:800;font-size:13px}
+  .r{text-align:right}.c{text-align:center}
+  .usd{color:#1d4ed8;font-weight:700}.bdt{color:#dc2626;font-weight:700}
+  .footer{border-top:1px solid #e9ecef;padding-top:12px;margin-top:20px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
+  .no-print{background:#1e3a5f;color:#fff;padding:10px 36px;display:flex;gap:10px;align-items:center}
+  .bp{background:#fff;color:#1e3a5f;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  .bg{background:#22c55e;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  @media print{.no-print{display:none}@page{margin:1cm;size:A4}}
+</style></head><body>
+<div class="no-print">
+  <button class="bp" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button class="bg" onclick="dlImg()">📷 Download as Image</button>
+</div>
+<div class="page" id="rpt">
+  <div class="hdr">
+    <div>
+      <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">GentiX Fashion ERP</div>
+      <h1>Facebook Ad Spend Report</h1>
+      <div class="period">📅 ${fmtD(start)} — ${fmtD(end)}</div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.9">
+      <div><strong>Generated:</strong> ${today}</div>
+      <div><strong>Total Ads:</strong> ${adSummary.length} ad(s)</div>
+      <div><strong>Total Entries:</strong> ${filtered.length}</div>
+    </div>
+  </div>
+
+  <!-- Summary by Ad -->
+  <div class="section">
+    <div class="sec-title">Per-Ad Cost Summary</div>
+    <table>
+      <thead><tr>
+        <th>Ad Name</th><th class="c">Entries</th>
+        <th class="r">Total Spent (USD)</th><th class="r">Total Spent (BDT)</th>
+      </tr></thead>
+      <tbody>
+        ${adSummary.map(([name,d])=>`<tr>
+          <td style="font-weight:700">${name}</td>
+          <td class="c">${d.entries}</td>
+          <td class="r usd">$${d.usd.toFixed(2)}</td>
+          <td class="r bdt">৳${Math.round(d.bdt).toLocaleString()}</td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td><strong>TOTAL</strong></td>
+          <td class="c"><strong>${filtered.length}</strong></td>
+          <td class="r usd">$${tUSD.toFixed(2)}</td>
+          <td class="r bdt">৳${Math.round(tBDT).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Daily Detail -->
+  <div class="section">
+    <div class="sec-title">Daily Transaction Detail</div>
+    <table>
+      <thead><tr><th>Date</th><th>Ad Name</th><th class="r">USD Spent</th><th class="r">BDT</th></tr></thead>
+      <tbody>
+        ${filtered.map(r=>`<tr>
+          <td style="color:#6b7280">${r.date}</td>
+          <td style="font-weight:600">${r.adName}</td>
+          <td class="r usd">$${(r.dailyUSD||0).toFixed(2)}</td>
+          <td class="r bdt">৳${Math.round(r.totalBDT||0).toLocaleString()}</td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td colspan="2"><strong>GRAND TOTAL</strong></td>
+          <td class="r usd">$${tUSD.toFixed(2)}</td>
+          <td class="r bdt">৳${Math.round(tBDT).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <div>GentiX Fashion ERP — FB Ad Spend Report</div><div>${today}</div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+async function dlImg(){
+  const np=document.querySelectorAll('.no-print');
+  np.forEach(e=>e.style.display='none');
+  const c=await html2canvas(document.getElementById('rpt'),{scale:2,backgroundColor:'#fff',useCORS:true});
+  np.forEach(e=>e.style.display='flex');
+  const a=document.createElement('a');
+  a.download='FB_Ad_Report_${start}_to_${end}.png';
+  a.href=c.toDataURL('image/png');a.click();
+}
+</script></body></html>`;
+
+    const win=window.open('','_blank','width=1000,height=750,scrollbars=yes');
+    win.document.write(html); win.document.close();
   }
 
   function filterByRange(type) {
@@ -300,5 +477,5 @@ const fbModule = (() => {
   function setEl(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
   async function refresh(){await fetchAllData();}
 
-  return { load, filterByStatus, updatePrevSpent, calcInstant, syncDailySpent, toggleStatus, createAd, deleteAd, getFilteredReport, filterByRange, refresh };
+  return { load, filterByStatus, updatePrevSpent, calcInstant, syncDailySpent, toggleStatus, createAd, deleteAd, getFilteredReport, filterByRange, refresh, printFbReport };
 })();
