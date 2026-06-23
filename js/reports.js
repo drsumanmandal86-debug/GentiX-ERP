@@ -59,8 +59,8 @@ const reportsModule = (() => {
     </div>
 
     <!-- Stats Row -->
-    <div id="reportStats" style="display:none;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
-      ${[['repSales','Revenue','#3949ab','bi-graph-up'],['repExpense','Total Outflow','#e74c3c','bi-cart-dash'],['repCashInHand','Cash Balance','#00acc1','bi-wallet2'],['repNet','Net Profit','#212529','bi-shield-check']].map(([id,lbl,clr,icon])=>`
+    <div id="reportStats" style="display:none;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px">
+      ${[['repSales','Revenue','#3949ab','bi-graph-up'],['repExpense','Total Outflow','#e74c3c','bi-cart-dash'],['repCashIn','Cash In (Period)','#27ae60','bi-arrow-down-circle'],['repCashInHand','Cash Balance','#00acc1','bi-wallet2'],['repNet','Net Profit','#212529','bi-shield-check']].map(([id,lbl,clr,icon])=>`
       <div style="background:#fff;border-radius:12px;padding:16px;border-bottom:4px solid ${clr};box-shadow:0 2px 6px rgba(0,0,0,.05)">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><small style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">${lbl}</small>
@@ -321,7 +321,8 @@ const reportsModule = (() => {
 
       // Stats Row
       const sEl=document.getElementById('reportStats');if(sEl)sEl.style.display='grid';
-      setEl('repSales',fmt(totalSales));setEl('repExpense',fmt(totalCOGS+totalExpenses));setEl('repCashInHand',fmt(cashInHand));
+      const periodCashIn=cashDocs.filter(e=>{const ds=parseDs(e.date);return ds>=fds&&ds<=tds&&(e.cashIn||0)>0;}).reduce((s,e)=>s+(e.cashIn||0),0);
+      setEl('repSales',fmt(totalSales));setEl('repExpense',fmt(totalCOGS+totalExpenses));setEl('repCashIn',fmt(periodCashIn));setEl('repCashInHand',fmt(cashInHand));
       const nEl=document.getElementById('repNet');if(nEl){nEl.textContent=fmt(netProfit);nEl.style.color=netProfit>=0?'#27ae60':'#e74c3c';}
 
       // Smart Summary
