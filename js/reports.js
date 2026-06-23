@@ -60,7 +60,7 @@ const reportsModule = (() => {
 
     <!-- Stats Row -->
     <div id="reportStats" style="display:none;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px">
-      ${[['repSales','Revenue','#3949ab','bi-graph-up'],['repExpense','Total Outflow','#e74c3c','bi-cart-dash'],['repCashIn','Cash In (Period)','#27ae60','bi-arrow-down-circle'],['repCashInHand','Cash Balance','#00acc1','bi-wallet2'],['repNet','Net Profit','#212529','bi-shield-check']].map(([id,lbl,clr,icon])=>`
+      ${[['repSales','Revenue','#3949ab','bi-graph-up'],['repExpense','Total Outflow','#e74c3c','bi-cart-dash'],['repCashIn','Received (Period)','#27ae60','bi-arrow-down-circle'],['repCashInHand','Cash Balance','#00acc1','bi-wallet2'],['repNet','Net Profit','#212529','bi-shield-check']].map(([id,lbl,clr,icon])=>`
       <div style="background:#fff;border-radius:12px;padding:16px;border-bottom:4px solid ${clr};box-shadow:0 2px 6px rgba(0,0,0,.05)">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><small style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">${lbl}</small>
