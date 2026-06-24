@@ -277,6 +277,11 @@ const overviewModule = (() => {
       <div id="cmp-result" style="display:none">
         <!-- Side by side KPI mini -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="cmp-kpi-row"></div>
+        <!-- Comparison Bar Chart -->
+        <div style="background:#0f172a;border-radius:12px;padding:18px;margin-bottom:14px">
+          <div style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px"><i class="bi bi-bar-chart-grouped" style="margin-right:6px"></i>Visual Comparison — Side by Side</div>
+          <div style="position:relative;height:320px"><canvas id="cmpBarChart"></canvas></div>
+        </div>
         <!-- Comparison table -->
         <div style="background:#0f172a;border-radius:12px;overflow:hidden">
           <div class="cmp-metric-row" style="background:#1e293b;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border:none">
@@ -592,6 +597,70 @@ async function dlImg(){
           <span style="text-align:right" class="${dc}">${pct!==null?sign+pct+'%':'—'}</span>
         </div>`;
       }).join('');
+    }
+
+    // ── Comparison Bar Chart ──
+    if(window._cmpChart instanceof Chart){window._cmpChart.destroy();window._cmpChart=null;}
+    const cmpCtx=document.getElementById('cmpBarChart')?.getContext('2d');
+    if(cmpCtx){
+      const cMetrics=[
+        {label:'Revenue',     a:mA.rev,     b:mB.rev},
+        {label:'COGS',        a:mA.cogs,    b:mB.cogs},
+        {label:'Expenses',    a:mA.opex,    b:mB.opex},
+        {label:'Ad Spend',    a:mA.adCost,  b:mB.adCost},
+        {label:'Gross Profit',a:mA.gross,   b:mB.gross},
+        {label:'Net Profit',  a:mA.net,     b:mB.net},
+      ];
+      window._cmpChart=new Chart(cmpCtx,{
+        type:'bar',
+        data:{
+          labels:cMetrics.map(m=>m.label),
+          datasets:[
+            {label:lA,data:cMetrics.map(m=>m.a),backgroundColor:'rgba(59,130,246,.75)',borderColor:'#3b82f6',borderWidth:1,borderRadius:5,borderSkipped:false},
+            {label:lB,data:cMetrics.map(m=>m.b),backgroundColor:'rgba(139,92,246,.75)',borderColor:'#8b5cf6',borderWidth:1,borderRadius:5,borderSkipped:false}
+          ]
+        },
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          interaction:{mode:'index',intersect:false},
+          plugins:{
+            legend:{labels:{color:'#94a3b8',font:{size:12,weight:'700'},padding:16}},
+            tooltip:{
+              backgroundColor:'rgba(15,23,42,.96)',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+              titleColor:'#e2e8f0',bodyColor:'#94a3b8',padding:12,
+              callbacks:{
+                title:i=>`📊 ${i[0].label}`,
+                label:i=>{
+                  const v=i.parsed.y;
+                  const sign=v<0?'(Loss) ':'';
+                  return ` ${i.dataset.label}: ${sign}৳${Math.abs(v).toLocaleString('en-IN')}`;
+                },
+                afterBody:items=>{
+                  if(items.length<2)return[];
+                  const diff=items[0].parsed.y-items[1].parsed.y;
+                  const pct=items[1].parsed.y!==0?((diff/Math.abs(items[1].parsed.y))*100).toFixed(1):null;
+                  const arrow=diff>0?'▲':'▼';
+                  return [`─────────────────`,` Δ ${arrow} ৳${Math.abs(diff).toLocaleString('en-IN')}${pct?` (${pct}%)`:''}  ${diff>0?lA:lB} বেশি`];
+                }
+              }
+            }
+          },
+          scales:{
+            x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#94a3b8',font:{size:11,weight:'600'}}},
+            y:{
+              grid:{color:'rgba(255,255,255,.06)'},
+              ticks:{color:'#64748b',font:{size:10},
+                callback:v=>{
+                  const a=Math.abs(v);
+                  if(a>=100000)return(v<0?'-':'')+'৳'+(a/100000).toFixed(1)+'L';
+                  if(a>=1000)return(v<0?'-':'')+'৳'+(a/1000).toFixed(0)+'K';
+                  return'৳'+v;
+                }
+              }
+            }
+          }
+        }
+      });
     }
 
     document.getElementById('cmp-result').style.display='block';
