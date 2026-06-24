@@ -169,7 +169,7 @@ const suppliersModule = (() => {
       // Fetch without orderBy to avoid composite index requirement — sort in JS
       const [purSnap, cbSnap] = await Promise.all([
         window.db.collection('purchases').where('supplierId','==',id).get(),
-        window.db.collection('cashBook').where('supplierId','==',id).get()
+        window.db.collection('cashBook').where('refId','==',id).get()
       ]);
 
       // Build combined ledger entries
@@ -180,6 +180,7 @@ const suppliersModule = (() => {
       });
       cbSnap.docs.forEach(d => {
         const c = d.data();
+        if (c.type !== 'Supplier') return; // only supplier payments
         const amt = c.cashOut||c.amount||0;
         if (amt > 0) entries.push({ date: c.date||'', desc: `Payment: ${c.particulars||'Supplier Payment'}`, debit: 0, credit: amt, type:'payment' });
       });
