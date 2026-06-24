@@ -463,12 +463,14 @@ async function dlImg(){
   }
 
   function filterByRange(type) {
-    const now = new Date(), s = new Date(), e = new Date();
+    // Use Bangladesh local time (UTC+6) — toISOString() would give UTC and drift at midnight
+    const now = window.bdNow();
+    const s = window.bdNow(), e = window.bdNow();
+    const fmt2 = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if (type==='yesterday'){s.setDate(now.getDate()-1);e.setDate(now.getDate()-1);}
     else if (type==='last7'){s.setDate(now.getDate()-7);}
     else if (type==='thisMonth'){s.setDate(1);}
     else if (type==='lifetime'){s.setFullYear(2020,0,1);}
-    const fmt2 = d => d.toISOString().split('T')[0];
     const sEl = document.getElementById('fbStartDate'), eEl = document.getElementById('fbEndDate');
     if(sEl) sEl.value=fmt2(s); if(eEl) eEl.value=fmt2(e);
     getFilteredReport();
