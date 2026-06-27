@@ -774,11 +774,12 @@ async function dlImg(){
   .indent{padding-left:28px!important;color:#475569}
   .progress-bar{height:12px;background:#e2e8f0;border-radius:6px;overflow:hidden;margin:4px 0}
   .progress-fill{height:100%;border-radius:6px}
-  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px}
-  .kpi-card{border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;border-left:4px solid}
-  .kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-  .kpi-val{font-size:19px;font-weight:800;margin-top:3px;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
-  .cash-highlight{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #4ade80;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .kpi-card{border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;border-left:4px solid;position:relative;overflow:hidden}
+  .kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  .kpi-val{font-size:20px;font-weight:800;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  .kpi-sub{font-size:10px;color:#94a3b8;margin-top:3px}
+  .cash-highlight{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #4ade80;border-radius:10px;padding:13px 18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px}
   .green{color:#166534}.red{color:#991b1b}.blue{color:#1e40af}
   .footer{border-top:2px solid #e2e8f0;padding-top:14px;margin-top:20px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between;align-items:center}
   .stamp{border:2px solid #1e3a5f;border-radius:50%;width:72px;height:72px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#1e3a5f;text-align:center;line-height:1.3}
@@ -811,21 +812,58 @@ async function dlImg(){
     </div>
   </div>
 
-  <!-- Cash in Hand highlight -->
+  <!-- Cash in Hand — compact horizontal banner -->
   <div class="cash-highlight">
-    <div style="background:#4ade80;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">💵</div>
-    <div style="flex:1">
-      <div style="font-size:10px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">Cash in Hand (Current Balance)</div>
-      <div style="font-size:26px;font-weight:800;color:#166534;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif">${fmt(cashInHand)}</div>
-      <div style="font-size:11px;color:#4ade80aa;margin-top:2px">Opening: ${fmt(window.appSettings?.openingCash||0)} &nbsp;|&nbsp; Total In: ${fmt(cashInSum)} &nbsp;|&nbsp; Total Out: ${fmt(cashOutSum)}</div>
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="background:#16a34a;border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">💵</div>
+      <div>
+        <div style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.8px">Cash in Hand — Current Balance</div>
+        <div style="font-size:10px;color:#4ade80;margin-top:3px">
+          Opening: <strong>${fmt(window.appSettings?.openingCash||0)}</strong> &nbsp;·&nbsp;
+          Total In: <strong>${fmt(cashInSum)}</strong> &nbsp;·&nbsp;
+          Total Out: <strong>${fmt(cashOutSum)}</strong>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div class="tk" style="font-size:28px;font-weight:800;color:#166534">${fmt(cashInHand)}</div>
+      <div style="font-size:10px;color:#4ade80;font-weight:600">Available Cash</div>
     </div>
   </div>
 
-  <!-- Quick KPIs -->
+  <!-- KPI Cards — 3×2 grid (no orphan cards) -->
   <div class="section">
     <div class="kpi-grid">
-      ${[[fmt(totalRev),'Total Revenue','#166534','#f0fdf4'],[fmt(totalCOGS),'Total COGS','#1e40af','#eff6ff'],[fmt(totalExp),'Total Expenses','#b45309','#fffbeb'],[netProfit>=0?fmt(netProfit):'('+fmt(Math.abs(netProfit))+')','Net Profit',netProfit>=0?'#166534':'#991b1b',netProfit>=0?'#f0fdf4':'#fef2f2'],[roi+'%','Lifetime ROI',parseFloat(roi)>=0?'#166534':'#991b1b','#eff6ff'],[fmt(netCapital),'Net Capital','#1e3a5f','#f8fafc']].map(([v,l,c,bg])=>`
-      <div class="kpi-card" style="border-left-color:${c};background:${bg}"><div class="kpi-label">${l}</div><div class="kpi-val" style="color:${c}">${v}</div></div>`).join('')}
+      <div class="kpi-card" style="border-left-color:#166534;background:linear-gradient(135deg,#f0fdf4,#fff)">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-val green">${fmt(totalRev)}</div>
+        <div class="kpi-sub">${periodStr}</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#1e40af;background:linear-gradient(135deg,#eff6ff,#fff)">
+        <div class="kpi-label">Total COGS</div>
+        <div class="kpi-val blue">${fmt(totalCOGS)}</div>
+        <div class="kpi-sub">Sold item cost</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#b45309;background:linear-gradient(135deg,#fffbeb,#fff)">
+        <div class="kpi-label">Total Expenses</div>
+        <div class="kpi-val" style="color:#b45309">${fmt(totalExp)}</div>
+        <div class="kpi-sub">Opex + Ad Spend</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:${netProfit>=0?'#166534':'#991b1b'};background:linear-gradient(135deg,${netProfit>=0?'#f0fdf4':'#fef2f2'},#fff)">
+        <div class="kpi-label">Net Profit ${netProfit<0?'(Loss)':''}</div>
+        <div class="kpi-val ${netProfit>=0?'green':'red'}">${netProfit>=0?fmt(netProfit):'('+fmt(Math.abs(netProfit))+')'}</div>
+        <div class="kpi-sub">${netMargin}% net margin</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:${parseFloat(roi)>=0?'#0891b2':'#991b1b'};background:linear-gradient(135deg,#f0f9ff,#fff)">
+        <div class="kpi-label">Lifetime ROI</div>
+        <div class="kpi-val" style="color:${parseFloat(roi)>=0?'#0891b2':'#991b1b'}">${roi}%</div>
+        <div class="kpi-sub">On ৳${fmt(totalInv)} investment</div>
+      </div>
+      <div class="kpi-card" style="border-left-color:#1e3a5f;background:linear-gradient(135deg,#f1f5f9,#fff)">
+        <div class="kpi-label">Net Capital</div>
+        <div class="kpi-val" style="color:#1e3a5f">${fmt(netCapital)}</div>
+        <div class="kpi-sub">Assets − Liabilities</div>
+      </div>
     </div>
   </div>
 
