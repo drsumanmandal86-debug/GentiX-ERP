@@ -9,6 +9,7 @@ const ledgerModule = (() => {
   let profitEntries = [], profitFiltered = [], profitPage = 1;
   const PROFIT_PER_PAGE = 8;
   const PROFIT_CATEGORIES = ['Salary / Personal Use','Rent','Food / Groceries','Bills / Utilities','Shopping','Medical','Transport','Education','Others'];
+  const PROFIT_SOURCES = ['Business Profit / Salary','External / Other Income'];
 
   async function load() {
     // Load custom names from Firestore
@@ -422,6 +423,7 @@ const ledgerModule = (() => {
     profitFiltered = [...profitEntries];
     profitPage = 1;
     renderProfitSummary();
+    renderProfitIncomeBreakdown();
     renderProfitCategoryBreakdown();
     renderProfitTable();
   }
@@ -443,13 +445,19 @@ const ledgerModule = (() => {
           <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Type *</label>
             <select id="pf-type" class="form-control" onchange="ledgerModule.toggleProfitCategory()">
-              <option value="Withdrawal">Withdrawal from Business (Cash In)</option>
+              <option value="Withdrawal">Money In (Cash In)</option>
               <option value="Expense">Personal Expense (Cash Out)</option>
             </select>
           </div>
           <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Date *</label>
             <input type="date" id="pf-date" class="form-control" value="${todayStr()}">
+          </div>
+          <div id="pf-source-div" style="margin-bottom:12px" class="form-group">
+            <label class="form-label">Source *</label>
+            <select id="pf-source" class="form-control">
+              ${PROFIT_SOURCES.map(s=>`<option>${s}</option>`).join('')}
+            </select>
           </div>
           <div id="pf-category-div" style="display:none;margin-bottom:12px" class="form-group">
             <label class="form-label">Category *</label>
@@ -472,10 +480,17 @@ const ledgerModule = (() => {
       </div>
 
       <div>
-        <div class="table-card mb-3" style="overflow:hidden">
-          <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px"><i class="bi bi-pie-chart-fill me-2" style="color:#e74c3c"></i>Spending by Category (Lifetime)</div>
-          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Category</th><th style="text-align:center">Txns</th><th style="text-align:right">Amount</th></tr></thead>
-          <tbody id="pf-cat-body"></tbody></table></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="table-card" style="overflow:hidden">
+            <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px"><i class="bi bi-piggy-bank-fill me-2" style="color:#16a34a"></i>Income by Source (Lifetime)</div>
+            <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Source</th><th style="text-align:center">Txns</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody id="pf-source-body"></tbody></table></div>
+          </div>
+          <div class="table-card" style="overflow:hidden">
+            <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px"><i class="bi bi-pie-chart-fill me-2" style="color:#e74c3c"></i>Spending by Category (Lifetime)</div>
+            <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Category</th><th style="text-align:center">Txns</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody id="pf-cat-body"></tbody></table></div>
+          </div>
         </div>
         <div class="table-card" style="overflow:hidden">
           <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
@@ -483,7 +498,7 @@ const ledgerModule = (() => {
             <button class="btn btn-outline btn-sm" onclick="ledgerModule.fetchProfitData()"><i class="bi bi-arrow-clockwise"></i></button>
           </div>
           <div style="overflow-x:auto"><table class="data-table"><thead><tr>
-            <th>Date</th><th>Type / Category</th><th>Note</th>
+            <th>Date</th><th>Source / Category</th><th>Note</th>
             <th style="text-align:right;color:#27ae60">Withdrawn</th><th style="text-align:right;color:#e74c3c">Spent</th>
             <th style="text-align:right">Balance</th><th>Actions</th>
           </tr></thead><tbody id="pf-history-body"></tbody></table></div>
@@ -499,8 +514,10 @@ const ledgerModule = (() => {
 
   function toggleProfitCategory() {
     const type = document.getElementById('pf-type')?.value;
-    const div = document.getElementById('pf-category-div');
-    if (div) div.style.display = type === 'Expense' ? 'block' : 'none';
+    const catDiv = document.getElementById('pf-category-div');
+    const srcDiv = document.getElementById('pf-source-div');
+    if (catDiv) catDiv.style.display = type === 'Expense' ? 'block' : 'none';
+    if (srcDiv) srcDiv.style.display = type === 'Withdrawal' ? 'block' : 'none';
   }
 
   function renderProfitSummary() {
@@ -529,6 +546,23 @@ const ledgerModule = (() => {
     </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:14px;color:#9ca3af">কোনো খরচ এখনো যোগ হয়নি</td></tr>';
   }
 
+  function renderProfitIncomeBreakdown() {
+    const tbody = document.getElementById('pf-source-body');
+    if (!tbody) return;
+    const srcMap = {};
+    profitEntries.filter(e=>e.type==='Withdrawal').forEach(e=>{
+      const s = e.source||'Business Profit / Salary';
+      if(!srcMap[s]) srcMap[s]={count:0,total:0};
+      srcMap[s].count++; srcMap[s].total+=e.amount||0;
+    });
+    const rows = Object.entries(srcMap).sort((a,b)=>b[1].total-a[1].total);
+    tbody.innerHTML = rows.length ? rows.map(([src,d])=>`<tr>
+      <td style="padding-left:14px"><span style="background:#dcfce7;color:#166534;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700">${src}</span></td>
+      <td style="text-align:center">${d.count}</td>
+      <td style="text-align:right;font-weight:700;color:#16a34a;padding-right:14px">${fmt(d.total)}</td>
+    </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:14px;color:#9ca3af">কোনো টাকা এখনো যোগ হয়নি</td></tr>';
+  }
+
   function renderProfitTable() {
     const tbody = document.getElementById('pf-history-body');
     if (!tbody) return;
@@ -537,9 +571,12 @@ const ledgerModule = (() => {
     if (!page.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">কোনো এন্ট্রি নেই</td></tr>'; updateProfitPagination(0); return; }
     tbody.innerHTML = page.map(r => {
       const isW = r.type === 'Withdrawal';
+      const tag = isW
+        ? `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${r.source||'Business Profit / Salary'}</span>`
+        : `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${r.category||'Others'}</span>`;
       return `<tr>
         <td><small style="color:#9ca3af">${fmtDate(r.date)}</small></td>
-        <td>${isW?'<span class="badge badge-success">Withdrawal</span>':`<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${r.category||'Others'}</span>`}</td>
+        <td>${tag}</td>
         <td style="font-size:13px">${r.note||'—'}</td>
         <td style="text-align:right;color:#27ae60;font-weight:700">${isW?fmt(r.amount):'—'}</td>
         <td style="text-align:right;color:#e74c3c;font-weight:700">${!isW?fmt(r.amount):'—'}</td>
@@ -569,6 +606,7 @@ const ledgerModule = (() => {
     const type = document.getElementById('pf-type')?.value;
     const date = document.getElementById('pf-date')?.value || todayStr();
     const category = type==='Expense' ? document.getElementById('pf-category')?.value : null;
+    const source = type==='Withdrawal' ? document.getElementById('pf-source')?.value : null;
     const note = document.getElementById('pf-note')?.value.trim();
     const amount = n(document.getElementById('pf-amount')?.value);
     const btn = document.getElementById('pfSaveBtn');
@@ -578,7 +616,7 @@ const ledgerModule = (() => {
     btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…';
     try {
       await window.db.collection('profitLedger').add({
-        type, date, category, note: note||'', amount,
+        type, date, category, source, note: note||'', amount,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       toast('Entry saved!','success');
