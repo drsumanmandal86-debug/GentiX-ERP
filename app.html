@@ -271,7 +271,6 @@ const MODULES = {
   customers:customersModule, reports:reportsModule, overview:overviewModule, settings:settingsModule
 };
 
-let loadedSections = new Set();
 let _wasMobile = null; // track last viewport type to detect mobile↔desktop switch
 window.appSettings = {};
 
@@ -318,18 +317,12 @@ async function navigateTo(section) {
   const titleEl = document.getElementById('pageTitle');
   if (titleEl) titleEl.textContent = PAGE_TITLES[section] || section;
 
-  // Clear cache when user switches between mobile ↔ desktop (e.g. desktop site toggle)
-  const nowMobile = isMobile();
-  if (_wasMobile !== null && _wasMobile !== nowMobile) {
-    loadedSections.clear(); // viewport type changed → re-render all sections fresh
-  }
-  _wasMobile = nowMobile;
+  _wasMobile = isMobile();
 
-  // Dashboard always re-fetches (live data), others cached per viewport type
-  if (section === 'dashboard' || !loadedSections.has(section)) {
-    await MODULES[section].load();
-    if (section !== 'dashboard') loadedSections.add(section);
-  }
+  // Always re-fetch fresh data — modules affect each other's data
+  // (e.g. Purchases updates Inventory+Suppliers stock/due, Sales updates Inventory+Customers, etc.)
+  // so stale per-session caching showed outdated numbers after cross-module actions.
+  await MODULES[section].load();
   if (isMobile()) requestAnimationFrame(makeMobileReady);
 }
 
