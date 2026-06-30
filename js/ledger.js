@@ -1,9 +1,15 @@
-/* ===================== PERSONAL LEDGER (matching PersonalUI.html + PersonalLogic.gs) ===================== */
+/* ===================== PERSONAL LEDGER (Lending Tracker + Profit/Expense Tracker) ===================== */
 const ledgerModule = (() => {
   let allHistory = [], filteredHistory = [], curPage = 1;
   const PER_PAGE = 6;
   const DEFAULT_NAMES = ["Chandan Mandal", "Nitai Biswas", "Prollad Bose", "Dola Mandal"];
   let PERSON_NAMES = [...DEFAULT_NAMES];
+
+  let activeTab = 'lending';
+  let profitEntries = [], profitFiltered = [], profitPage = 1;
+  const PROFIT_PER_PAGE = 8;
+  let lifetimeNetProfit = 0;
+  const PROFIT_CATEGORIES = ['Salary / Personal Use','Rent','Food / Groceries','Bills / Utilities','Shopping','Medical','Transport','Education','Others'];
 
   async function load() {
     // Load custom names from Firestore
@@ -13,15 +19,48 @@ const ledgerModule = (() => {
         PERSON_NAMES = [...DEFAULT_NAMES, ...snap.data().ledgerNames.filter(n => !DEFAULT_NAMES.includes(n))];
       }
     } catch(e) {}
-    renderLayout();
+    renderShell();
     await fetchData();
   }
+
+  /* ===================== SHELL + TAB SWITCHER ===================== */
+  function renderShell() {
+    document.getElementById('section-ledger').innerHTML = `
+    <div class="table-card mb-3" style="padding:6px;display:flex;gap:6px">
+      <button id="tabBtn-lending" class="btn btn-sm" onclick="ledgerModule.switchTab('lending')"
+        style="flex:1;justify-content:center;padding:10px;font-weight:700;background:#3949ab;color:#fff;border:none">
+        <i class="bi bi-people-fill me-1"></i> Lending Ledger
+      </button>
+      <button id="tabBtn-profit" class="btn btn-sm btn-outline" onclick="ledgerModule.switchTab('profit')"
+        style="flex:1;justify-content:center;padding:10px;font-weight:700">
+        <i class="bi bi-piggy-bank-fill me-1"></i> Profit &amp; Expense Tracker
+      </button>
+    </div>
+    <div id="ledger-tab-content"></div>`;
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    const lBtn = document.getElementById('tabBtn-lending'), pBtn = document.getElementById('tabBtn-profit');
+    if (tab === 'lending') {
+      if(lBtn){lBtn.style.background='#3949ab';lBtn.style.color='#fff';lBtn.classList.remove('btn-outline');}
+      if(pBtn){pBtn.style.background='';pBtn.style.color='';pBtn.classList.add('btn-outline');}
+      renderLayout(); renderTopBalance(_lastNetBalance); renderSummaryTable(_lastSummaries); renderTable();
+    } else {
+      if(pBtn){pBtn.style.background='#16a34a';pBtn.style.color='#fff';pBtn.classList.remove('btn-outline');}
+      if(lBtn){lBtn.style.background='';lBtn.style.color='';lBtn.classList.add('btn-outline');}
+      renderProfitLayout();
+      fetchProfitData();
+    }
+  }
+
+  /* ===================== LENDING LEDGER (existing logic, unchanged) ===================== */
+  let _lastNetBalance = 0, _lastSummaries = [];
 
   async function fetchData() {
     const snap = await window.db.collection('personalLedger').orderBy('date','asc').get();
     const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // Build per-person running balance (matching PersonalLogic.gs behavior)
     const personData = {};
     entries.forEach(e => {
       const name = e.personName;
@@ -32,7 +71,6 @@ const ledgerModule = (() => {
       personData[name].entries.push(e);
     });
 
-    // Build history with running per-person balance
     const histWithBal = [];
     const runBal = {};
     entries.forEach(e => {
@@ -47,7 +85,9 @@ const ledgerModule = (() => {
       name, paid: d.totalPaid, spent: d.totalSpent, balance: d.balance
     }));
     const netBalance = summaries.reduce((s, x) => s + x.balance, 0);
+    _lastNetBalance = netBalance; _lastSummaries = summaries;
 
+    renderLayout();
     renderTopBalance(netBalance);
     renderSummaryTable(summaries);
     curPage = 1;
@@ -55,11 +95,9 @@ const ledgerModule = (() => {
   }
 
   function renderLayout() {
-    // CSS handles layout: mobile=block (single col), desktop=grid (2 col)
-    // See #ledger-top-row and #ledger-main-grid in style.css
-    document.getElementById('section-ledger').innerHTML = `
+    if (activeTab !== 'lending') return;
+    document.getElementById('ledger-tab-content').innerHTML = `
 
-    <!-- TOP: Balance + Search (CSS grid on desktop, block on mobile) -->
     <div id="ledger-top-row">
       <div class="table-card" style="padding:16px;text-align:center">
         <small style="color:#6b7280;text-transform:uppercase;font-weight:700;font-size:11px">Overall Net Balance</small>
@@ -73,10 +111,8 @@ const ledgerModule = (() => {
       </div>
     </div>
 
-    <!-- MAIN: Form + Tables (CSS grid on desktop, block on mobile — Form comes first) -->
     <div id="ledger-main-grid">
 
-      <!-- Form — appears first in DOM = shows first on mobile -->
       <div id="ledger-form-col" class="table-card" style="padding:18px">
         <h5 style="font-weight:700;color:#212529;margin-bottom:16px">
           <i class="bi bi-plus-circle-fill" style="color:#3949ab"></i> New Transaction
@@ -114,7 +150,6 @@ const ledgerModule = (() => {
         </button>
       </div>
 
-      <!-- Tables — comes after form in DOM -->
       <div id="ledger-table-col">
         <div class="table-card" style="margin-bottom:12px;overflow:hidden">
           <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px">Person-wise Net Balance</div>
@@ -145,7 +180,6 @@ const ledgerModule = (() => {
       </div>
     </div>`;
 
-    // Close dropdown on outside click
     document.addEventListener('click', e => {
       if (!document.getElementById('pName')?.contains(e.target)) {
         const dd = document.getElementById('nameDropdown');
@@ -266,7 +300,6 @@ const ledgerModule = (() => {
     btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…';
 
     try {
-      // Calculate running balance for this person
       const snap = await window.db.collection('personalLedger').where('personName','==',name).orderBy('date','desc').limit(1).get();
       const lastBal = snap.empty ? 0 : (snap.docs[0].data().runBalance || 0);
       const runBalance = lastBal + paid - spent;
@@ -275,7 +308,6 @@ const ledgerModule = (() => {
         personName: name, note, cashIn: paid, cashOut: spent, runBalance,
         date: todayStr(), createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      // Sync to Google Sheets
       window.SheetsSync?.personalLedger({ personName:name, note, cashIn:paid, cashOut:spent, date:todayStr() });
       toast('Entry Saved!','success');
       document.getElementById('pName').value='';
@@ -287,7 +319,6 @@ const ledgerModule = (() => {
     } catch(e) { btn.disabled=false; btn.innerHTML='Save Entry'; toast('Error: '+e.message,'error'); }
   }
 
-  /* ── Manage Person Names ── */
   function showManageNames() {
     const customNames = PERSON_NAMES.filter(n => !DEFAULT_NAMES.includes(n));
     openModal('Manage Person Names', `
@@ -322,7 +353,6 @@ const ledgerModule = (() => {
     await window.db.collection('settings').doc('config').set({ ledgerNames: customNames }, { merge: true });
     toast('নাম যোগ হয়েছে!','success');
     closeModal();
-    // Re-render layout to update dropdown
     renderLayout();
     await fetchData();
   }
@@ -338,7 +368,6 @@ const ledgerModule = (() => {
     await fetchData();
   }
 
-  /* ── EDIT Entry ── */
   function showEdit(id, personName, cashIn, cashOut, note, date) {
     openModal('Edit Ledger Entry', `
       <div class="form-grid">
@@ -372,7 +401,6 @@ const ledgerModule = (() => {
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
-  /* ── DELETE Entry ── */
   async function delEntry(id) {
     if (!confirm('Delete this entry?')) return;
     try {
@@ -381,5 +409,226 @@ const ledgerModule = (() => {
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
-  return { load, toggleDropdown, selectName, filterNames, filterHistory, saveEntry, showManageNames, addName, removeName, showEdit, updateEntry, delEntry, changePage };
+  /* ===================== PROFIT & EXPENSE TRACKER (new) ===================== */
+
+  async function calcLifetimeNetProfit() {
+    try {
+      const [salesSnap, expSnap, prodSnap] = await Promise.all([
+        window.db.collection('sales').get(),
+        window.db.collection('expenses').get(),
+        window.db.collection('products').get()
+      ]);
+      const costMap = {};
+      prodSnap.docs.forEach(d => { const p = d.data(); if(p.name) costMap[p.name.trim().toLowerCase()] = p.buyPrice||0; });
+      const sales = salesSnap.docs.map(d=>d.data()).filter(s=>s.status!=='Returned');
+      const totalRev = sales.reduce((s,d)=>s+(d.total||0),0);
+      const totalCOGS = sales.reduce((s,d)=>{const bp=costMap[(d.product||'').trim().toLowerCase()]||d.buyPrice||0;return s+(d.qty||0)*bp;},0);
+      const paidExp = expSnap.docs.map(d=>d.data()).filter(e=>e.status==='Paid'||e.category==='Meta/Facebook Ads');
+      const totalExp = paidExp.reduce((s,d)=>s+(d.amount||0),0);
+      return totalRev - totalCOGS - totalExp;
+    } catch(e) { return 0; }
+  }
+
+  async function fetchProfitData() {
+    const [snap, np] = await Promise.all([
+      window.db.collection('profitLedger').orderBy('date','asc').get(),
+      calcLifetimeNetProfit()
+    ]);
+    lifetimeNetProfit = np;
+    const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let runBal = 0;
+    const withBal = entries.map(e => {
+      runBal += e.type === 'Withdrawal' ? (e.amount||0) : -(e.amount||0);
+      return { ...e, runBalance: runBal };
+    });
+    profitEntries = withBal.reverse();
+    profitFiltered = [...profitEntries];
+    profitPage = 1;
+    renderProfitSummary();
+    renderProfitCategoryBreakdown();
+    renderProfitTable();
+  }
+
+  function renderProfitLayout() {
+    if (activeTab !== 'profit') return;
+    document.getElementById('ledger-tab-content').innerHTML = `
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px" id="profit-summary-row">
+      <div class="stat-card"><div class="stat-label">Lifetime Net Profit</div><div class="stat-value sv-blue" id="pf-netprofit">৳0</div></div>
+      <div class="stat-card"><div class="stat-label">Total Withdrawn</div><div class="stat-value sv-green" id="pf-withdrawn">৳0</div></div>
+      <div class="stat-card"><div class="stat-label">Total Spent</div><div class="stat-value sv-red" id="pf-spent">৳0</div></div>
+      <div class="stat-card"><div class="stat-label">Balance in Hand</div><div class="stat-value sv-orange" id="pf-balance">৳0</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:1.2rem">
+      <div class="table-card" style="border-top:5px solid #16a34a">
+        <div style="padding:20px">
+          <h5 style="color:#16a34a;font-weight:700;margin-bottom:16px"><i class="bi bi-wallet2"></i> New Entry</h5>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Type *</label>
+            <select id="pf-type" class="form-control" onchange="ledgerModule.toggleProfitCategory()">
+              <option value="Withdrawal">Withdrawal from Business (Cash In)</option>
+              <option value="Expense">Personal Expense (Cash Out)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Date *</label>
+            <input type="date" id="pf-date" class="form-control" value="${todayStr()}">
+          </div>
+          <div id="pf-category-div" style="display:none;margin-bottom:12px" class="form-group">
+            <label class="form-label">Category *</label>
+            <select id="pf-category" class="form-control">
+              ${PROFIT_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Note</label>
+            <input type="text" id="pf-note" class="form-control" placeholder="e.g. June salary, Bank transfer, Bazar">
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">Amount (৳) *</label>
+            <input type="number" id="pf-amount" class="form-control" min="1" step="0.01">
+          </div>
+          <button id="pfSaveBtn" onclick="ledgerModule.saveProfitEntry()" class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;background:#16a34a;border-color:#16a34a;justify-content:center">
+            <i class="bi bi-check-circle"></i> Save Entry
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="table-card mb-3" style="overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px"><i class="bi bi-pie-chart-fill me-2" style="color:#e74c3c"></i>Spending by Category (Lifetime)</div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Category</th><th style="text-align:center">Txns</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody id="pf-cat-body"></tbody></table></div>
+        </div>
+        <div class="table-card" style="overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:700;font-size:14px">Transaction History</span>
+            <button class="btn btn-outline btn-sm" onclick="ledgerModule.fetchProfitData()"><i class="bi bi-arrow-clockwise"></i></button>
+          </div>
+          <div style="overflow-x:auto"><table class="data-table"><thead><tr>
+            <th>Date</th><th>Type / Category</th><th>Note</th>
+            <th style="text-align:right;color:#27ae60">Withdrawn</th><th style="text-align:right;color:#e74c3c">Spent</th>
+            <th style="text-align:right">Balance</th><th>Actions</th>
+          </tr></thead><tbody id="pf-history-body"></tbody></table></div>
+          <div style="padding:10px 16px;border-top:1px solid #f3f4f6;display:flex;justify-content:center;align-items:center;gap:10px">
+            <button class="btn btn-outline btn-sm" id="pfPrevBtn" onclick="ledgerModule.changeProfitPage(-1)">◀</button>
+            <span id="pfPageInfo" style="font-size:12px;color:#6b7280;font-weight:600">Page 1 of 1</span>
+            <button class="btn btn-outline btn-sm" id="pfNextBtn" onclick="ledgerModule.changeProfitPage(1)">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function toggleProfitCategory() {
+    const type = document.getElementById('pf-type')?.value;
+    const div = document.getElementById('pf-category-div');
+    if (div) div.style.display = type === 'Expense' ? 'block' : 'none';
+  }
+
+  function renderProfitSummary() {
+    const totalWithdrawn = profitEntries.filter(e=>e.type==='Withdrawal').reduce((s,e)=>s+(e.amount||0),0);
+    const totalSpent = profitEntries.filter(e=>e.type==='Expense').reduce((s,e)=>s+(e.amount||0),0);
+    const balance = totalWithdrawn - totalSpent;
+    setEl('pf-netprofit', fmt(lifetimeNetProfit));
+    setEl('pf-withdrawn', fmt(totalWithdrawn));
+    setEl('pf-spent', fmt(totalSpent));
+    setEl('pf-balance', fmt(balance));
+  }
+
+  function renderProfitCategoryBreakdown() {
+    const tbody = document.getElementById('pf-cat-body');
+    if (!tbody) return;
+    const catMap = {};
+    profitEntries.filter(e=>e.type==='Expense').forEach(e=>{
+      const c = e.category||'Others';
+      if(!catMap[c]) catMap[c]={count:0,total:0};
+      catMap[c].count++; catMap[c].total+=e.amount||0;
+    });
+    const rows = Object.entries(catMap).sort((a,b)=>b[1].total-a[1].total);
+    tbody.innerHTML = rows.length ? rows.map(([cat,d])=>`<tr>
+      <td style="padding-left:14px"><span style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700">${cat}</span></td>
+      <td style="text-align:center">${d.count}</td>
+      <td style="text-align:right;font-weight:700;color:#e74c3c;padding-right:14px">${fmt(d.total)}</td>
+    </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:14px;color:#9ca3af">কোনো খরচ এখনো যোগ হয়নি</td></tr>';
+  }
+
+  function renderProfitTable() {
+    const tbody = document.getElementById('pf-history-body');
+    if (!tbody) return;
+    const tp = Math.ceil(profitFiltered.length/PROFIT_PER_PAGE) || 1;
+    const page = profitFiltered.slice((profitPage-1)*PROFIT_PER_PAGE, profitPage*PROFIT_PER_PAGE);
+    if (!page.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af">কোনো এন্ট্রি নেই</td></tr>'; updateProfitPagination(0); return; }
+    tbody.innerHTML = page.map(r => {
+      const isW = r.type === 'Withdrawal';
+      return `<tr>
+        <td><small style="color:#9ca3af">${fmtDate(r.date)}</small></td>
+        <td>${isW?'<span class="badge badge-success">Withdrawal</span>':`<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${r.category||'Others'}</span>`}</td>
+        <td style="font-size:13px">${r.note||'—'}</td>
+        <td style="text-align:right;color:#27ae60;font-weight:700">${isW?fmt(r.amount):'—'}</td>
+        <td style="text-align:right;color:#e74c3c;font-weight:700">${!isW?fmt(r.amount):'—'}</td>
+        <td style="text-align:right;font-weight:700">${fmt(r.runBalance||0)}</td>
+        <td>
+          <button class="action-btn" onclick="ledgerModule.delProfitEntry('${r.id}')" title="Delete"><i class="bi bi-trash3"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+    updateProfitPagination(tp);
+  }
+
+  function updateProfitPagination(tp) {
+    const i=document.getElementById('pfPageInfo'), p=document.getElementById('pfPrevBtn'), nx=document.getElementById('pfNextBtn');
+    if(i) i.textContent = `Page ${profitPage} of ${tp||1}`;
+    if(p) p.disabled = profitPage===1;
+    if(nx) nx.disabled = profitPage===tp||tp===0;
+  }
+
+  function changeProfitPage(step) {
+    const tp = Math.ceil(profitFiltered.length/PROFIT_PER_PAGE)||1;
+    const np = profitPage+step;
+    if(np>=1&&np<=tp){profitPage=np;renderProfitTable();}
+  }
+
+  async function saveProfitEntry() {
+    const type = document.getElementById('pf-type')?.value;
+    const date = document.getElementById('pf-date')?.value || todayStr();
+    const category = type==='Expense' ? document.getElementById('pf-category')?.value : null;
+    const note = document.getElementById('pf-note')?.value.trim();
+    const amount = n(document.getElementById('pf-amount')?.value);
+    const btn = document.getElementById('pfSaveBtn');
+    if (!date) { toast('Date is required','error'); return; }
+    if (!amount) { toast('Amount is required','error'); return; }
+
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…';
+    try {
+      await window.db.collection('profitLedger').add({
+        type, date, category, note: note||'', amount,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast('Entry saved!','success');
+      document.getElementById('pf-note').value='';
+      document.getElementById('pf-amount').value='';
+      btn.disabled=false; btn.innerHTML='<i class="bi bi-check-circle"></i> Save Entry';
+      await fetchProfitData();
+    } catch(e) { btn.disabled=false; btn.innerHTML='Save Entry'; toast('Error: '+e.message,'error'); }
+  }
+
+  async function delProfitEntry(id) {
+    if (!confirm('Delete this entry?')) return;
+    try {
+      await window.db.collection('profitLedger').doc(id).delete();
+      toast('Entry deleted','success'); await fetchProfitData();
+    } catch(e) { toast('Error: '+e.message,'error'); }
+  }
+
+  function setEl(id,v){const el=document.getElementById(id);if(el)el.innerHTML=v;}
+
+  return {
+    load, switchTab,
+    // lending
+    toggleDropdown, selectName, filterNames, filterHistory, saveEntry, showManageNames, addName, removeName, showEdit, updateEntry, delEntry, changePage,
+    // profit tracker
+    toggleProfitCategory, saveProfitEntry, delProfitEntry, changeProfitPage, fetchProfitData
+  };
 })();
