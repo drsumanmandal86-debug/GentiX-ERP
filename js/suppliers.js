@@ -153,7 +153,7 @@ const suppliersModule = (() => {
   }
 
   // Supplier Ledger — Purchases + Payments + Running Balance + Pagination
-  let _slData=[], _slPage=1;
+  let _slData=[], _slPage=1, _slMeta={};
   const SL_PER = 15;
 
   async function viewLedger(id) {
@@ -162,7 +162,8 @@ const suppliersModule = (() => {
 
     openModal(`📒 Supplier Ledger — ${s.name}`,
       `<div style="text-align:center;padding:20px;color:#9ca3af">Loading…</div>`,
-      `<button class="btn btn-outline" onclick="closeModal()">Close</button>`,
+      `<button class="btn btn-outline" onclick="closeModal()">Close</button>
+       <button class="btn btn-primary" onclick="suppliersModule.printSupplierLedger()"><i class="bi bi-printer"></i> Print / Save</button>`,
       'modal-xl');
 
     try {
@@ -208,6 +209,7 @@ const suppliersModule = (() => {
 
       _slData = [...entries].reverse(); // newest first for display
       _slPage = 1;
+      _slMeta = { name: s.name, phone: s.phone||'', address: s.address||'', totDebit, totCredit, finalDue };
 
       const renderSlPage = (pg) => {
         const start=(pg-1)*SL_PER, end=Math.min(start+SL_PER,_slData.length);
@@ -280,6 +282,93 @@ const suppliersModule = (() => {
     if(body && suppliersModule._renderSlPage) body.innerHTML = suppliersModule._renderSlPage(pg);
   }
 
+  function printSupplierLedger() {
+    if (!_slData.length && !_slMeta.name) { toast('কোনো ডেটা নেই','error'); return; }
+    const { name, phone, address, totDebit, totCredit, finalDue } = _slMeta;
+    const today = new Date().toLocaleDateString('en-BD',{day:'2-digit',month:'long',year:'numeric'});
+    const rows = [...(_slData||[])].reverse(); // chronological order for the printed report
+
+    const html=`<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><title>Supplier Ledger — ${name}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter','Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff}
+  .tk{font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  .page{max-width:920px;margin:0 auto;padding:30px 36px}
+  .hdr{border-bottom:3px solid #1e3a5f;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-end}
+  h1{font-size:19px;font-weight:800;color:#1e3a5f}
+  .sub{font-size:11px;color:#64748b;margin-top:3px}
+  .summary{display:flex;gap:10px;margin-bottom:18px}
+  .sum-card{flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;border-left:4px solid}
+  .sum-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .sum-val{font-size:18px;font-weight:800;margin-top:3px;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:left}
+  th.r{text-align:right}
+  td{padding:7px 12px;border-bottom:1px solid #e9ecef;font-size:12px}
+  tr.payment td{background:#f0fdf4}
+  tr.prior td{background:#fefce8}
+  .r{text-align:right}
+  .footer{border-top:1px solid #e9ecef;padding-top:12px;margin-top:18px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
+  .no-print{background:#1e3a5f;color:#fff;padding:10px 36px;display:flex;gap:10px;align-items:center}
+  .bp{background:#fff;color:#1e3a5f;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  .bg{background:#22c55e;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  @media print{.no-print{display:none}@page{margin:1cm;size:A4}}
+</style></head><body>
+<div class="no-print">
+  <button class="bp" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button class="bg" onclick="dlImg()">📷 Download as Image</button>
+</div>
+<div class="page" id="rpt">
+  <div class="hdr">
+    <div>
+      <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">GentiX Fashion ERP</div>
+      <h1>Supplier Ledger — ${name}</h1>
+      <div class="sub">${phone?'📞 '+phone+' &nbsp;·&nbsp; ':''}${address||''}</div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#64748b"><strong>Generated:</strong> ${today}</div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-card" style="border-left-color:#3949ab"><div class="sum-label">Total Purchases</div><div class="sum-val tk" style="color:#3949ab">${fmt(totDebit)}</div></div>
+    <div class="sum-card" style="border-left-color:#27ae60"><div class="sum-label">Total Paid</div><div class="sum-val tk" style="color:#27ae60">${fmt(totCredit)}</div></div>
+    <div class="sum-card" style="border-left-color:${finalDue>0?'#e74c3c':'#27ae60'}"><div class="sum-label">Current Due</div><div class="sum-val tk" style="color:${finalDue>0?'#e74c3c':'#27ae60'}">${fmt(finalDue)}</div></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Date</th><th>Description</th><th class="r">Purchase (Dr)</th><th class="r">Payment (Cr)</th><th class="r">Balance Due</th></tr></thead>
+    <tbody>
+      ${rows.map(e=>`<tr class="${e.type==='payment'?'payment':e.type==='prior'?'prior':''}">
+        <td style="white-space:nowrap;color:#6b7280">${e.date?fmtDate(e.date):'—'}</td>
+        <td>${e.desc}</td>
+        <td class="r tk" style="color:#e74c3c">${e.debit>0?fmt(e.debit):'—'}</td>
+        <td class="r tk" style="color:#27ae60">${e.credit>0?fmt(e.credit):'—'}</td>
+        <td class="r tk" style="font-weight:700">${fmt(Math.abs(e.balance))}${e.balance<0?' Cr':e.balance>0?' Dr':''}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer"><div>GentiX Fashion ERP — Supplier Ledger Report</div><div>${today}</div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+async function dlImg(){
+  const np=document.querySelectorAll('.no-print');
+  np.forEach(e=>e.style.display='none');
+  const c=await html2canvas(document.getElementById('rpt'),{scale:2,backgroundColor:'#fff',useCORS:true});
+  np.forEach(e=>e.style.display='flex');
+  const a=document.createElement('a');
+  a.download='Supplier_Ledger_${name.replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().substring(0,10)}.png';
+  a.href=c.toDataURL('image/png');a.click();
+}
+</script>
+</body></html>`;
+
+    const win=window.open('','_blank','width=1000,height=750,scrollbars=yes');
+    win.document.write(html); win.document.close();
+  }
+
   async function del(id, name) {
     if (!confirmDelete(name)) return;
     try { await window.db.collection('suppliers').doc(id).delete(); toast('Deleted','success'); await fetchSuppliers(); }
@@ -289,5 +378,5 @@ const suppliersModule = (() => {
   function setEl(id,v) { const el=document.getElementById(id); if(el) el.innerHTML=v; }
   function search(v) { searchTerm=v; renderTable(); }
 
-  return { load, showAdd, showEdit, save, update, viewLedger, slPage, del, search };
+  return { load, showAdd, showEdit, save, update, viewLedger, slPage, printSupplierLedger, del, search };
 })();
