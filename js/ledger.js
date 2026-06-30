@@ -8,7 +8,6 @@ const ledgerModule = (() => {
   let activeTab = 'lending';
   let profitEntries = [], profitFiltered = [], profitPage = 1;
   const PROFIT_PER_PAGE = 8;
-  let lifetimeNetProfit = 0;
   const PROFIT_CATEGORIES = ['Salary / Personal Use','Rent','Food / Groceries','Bills / Utilities','Shopping','Medical','Transport','Education','Others'];
 
   async function load() {
@@ -409,32 +408,10 @@ const ledgerModule = (() => {
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
-  /* ===================== PROFIT & EXPENSE TRACKER (new) ===================== */
-
-  async function calcLifetimeNetProfit() {
-    try {
-      const [salesSnap, expSnap, prodSnap] = await Promise.all([
-        window.db.collection('sales').get(),
-        window.db.collection('expenses').get(),
-        window.db.collection('products').get()
-      ]);
-      const costMap = {};
-      prodSnap.docs.forEach(d => { const p = d.data(); if(p.name) costMap[p.name.trim().toLowerCase()] = p.buyPrice||0; });
-      const sales = salesSnap.docs.map(d=>d.data()).filter(s=>s.status!=='Returned');
-      const totalRev = sales.reduce((s,d)=>s+(d.total||0),0);
-      const totalCOGS = sales.reduce((s,d)=>{const bp=costMap[(d.product||'').trim().toLowerCase()]||d.buyPrice||0;return s+(d.qty||0)*bp;},0);
-      const paidExp = expSnap.docs.map(d=>d.data()).filter(e=>e.status==='Paid'||e.category==='Meta/Facebook Ads');
-      const totalExp = paidExp.reduce((s,d)=>s+(d.amount||0),0);
-      return totalRev - totalCOGS - totalExp;
-    } catch(e) { return 0; }
-  }
+  /* ===================== PROFIT & EXPENSE TRACKER (new) — fully standalone, no business module links ===================== */
 
   async function fetchProfitData() {
-    const [snap, np] = await Promise.all([
-      window.db.collection('profitLedger').orderBy('date','asc').get(),
-      calcLifetimeNetProfit()
-    ]);
-    lifetimeNetProfit = np;
+    const snap = await window.db.collection('profitLedger').orderBy('date','asc').get();
     const entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     let runBal = 0;
     const withBal = entries.map(e => {
@@ -453,8 +430,7 @@ const ledgerModule = (() => {
     if (activeTab !== 'profit') return;
     document.getElementById('ledger-tab-content').innerHTML = `
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px" id="profit-summary-row">
-      <div class="stat-card"><div class="stat-label">Lifetime Net Profit</div><div class="stat-value sv-blue" id="pf-netprofit">৳0</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px" id="profit-summary-row">
       <div class="stat-card"><div class="stat-label">Total Withdrawn</div><div class="stat-value sv-green" id="pf-withdrawn">৳0</div></div>
       <div class="stat-card"><div class="stat-label">Total Spent</div><div class="stat-value sv-red" id="pf-spent">৳0</div></div>
       <div class="stat-card"><div class="stat-label">Balance in Hand</div><div class="stat-value sv-orange" id="pf-balance">৳0</div></div>
@@ -531,7 +507,6 @@ const ledgerModule = (() => {
     const totalWithdrawn = profitEntries.filter(e=>e.type==='Withdrawal').reduce((s,e)=>s+(e.amount||0),0);
     const totalSpent = profitEntries.filter(e=>e.type==='Expense').reduce((s,e)=>s+(e.amount||0),0);
     const balance = totalWithdrawn - totalSpent;
-    setEl('pf-netprofit', fmt(lifetimeNetProfit));
     setEl('pf-withdrawn', fmt(totalWithdrawn));
     setEl('pf-spent', fmt(totalSpent));
     setEl('pf-balance', fmt(balance));
