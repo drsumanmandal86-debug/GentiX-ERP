@@ -371,14 +371,23 @@ function makeMobileReady() {
     });
   });
 
-  // 4. ledger grids — convert to block (CSS #ledger-main-grid already handles this)
-  ['ledger-top-row','ledger-main-grid'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.setProperty('display','block','important');
-    el.style.setProperty('width','100%','important');
-    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='12px'; });
-  });
+  // 4. ledger grids — flex column so CSS order:-1 works on form-col
+  const ldTopRow = document.getElementById('ledger-top-row');
+  if (ldTopRow) {
+    ldTopRow.style.setProperty('display','flex','important');
+    ldTopRow.style.setProperty('flex-direction','column','important');
+    ldTopRow.style.setProperty('gap','12px','important');
+    ldTopRow.style.setProperty('width','100%','important');
+    Array.from(ldTopRow.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='8px'; });
+  }
+  const ldMainGrid = document.getElementById('ledger-main-grid');
+  if (ldMainGrid) {
+    ldMainGrid.style.setProperty('display','flex','important');
+    ldMainGrid.style.setProperty('flex-direction','column','important');
+    ldMainGrid.style.setProperty('gap','14px','important');
+    ldMainGrid.style.setProperty('width','100%','important');
+    Array.from(ldMainGrid.children).forEach(c => { c.style.width='100%'; c.style.minWidth='0'; });
+  }
 
   // 4b. FB Tracker — flex+order (Daily Sync shows first on mobile)
   const fbGrid = document.getElementById('fb-main-grid');
@@ -404,15 +413,12 @@ function makeMobileReady() {
     t.style.minWidth = '480px';
   });
 
-  // 8. Ledger — Form সবার উপরে, sticky বাদ
-  const ldGrid = document.getElementById('ledger-main-grid');
+  // 8. Ledger — Form সবার উপরে (order:-1 via flex), sticky বাদ
   const ldForm = document.getElementById('ledger-form-col');
-  if (ldGrid && ldForm) {
+  if (ldForm) {
     ldForm.style.setProperty('position', 'static', 'important');
-    ldForm.style.width = '100%';
-    if (ldForm !== ldGrid.firstElementChild) {
-      ldGrid.insertBefore(ldForm, ldGrid.firstChild);
-    }
+    ldForm.style.setProperty('width', '100%', 'important');
+    ldForm.style.setProperty('order', '-1', 'important');
   }
 
   // 9. KPI grid — 2 column
@@ -431,15 +437,27 @@ function makeMobileReady() {
     el.style.padding = '14px';
   });
 
-  // 12. Profit Tracker — class-based grids (not caught by inline style scanner)
-  document.querySelectorAll('.pf-main-grid').forEach(el => {
-    el.style.setProperty('grid-template-columns', '1fr', 'important');
-    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='12px'; });
-  });
+  // 12. Profit Tracker — force single column (ID-based + inline style)
+  const pfMain = document.getElementById('pf-main-grid');
+  if (pfMain) {
+    pfMain.style.setProperty('display','flex','important');
+    pfMain.style.setProperty('flex-direction','column','important');
+    pfMain.style.setProperty('gap','14px','important');
+    pfMain.style.setProperty('width','100%','important');
+    Array.from(pfMain.children).forEach(c => { c.style.width='100%'; c.style.minWidth='0'; });
+  }
   document.querySelectorAll('.pf-breakdown-grid').forEach(el => {
-    el.style.setProperty('grid-template-columns', '1fr', 'important');
-    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='12px'; });
+    el.style.setProperty('display','flex','important');
+    el.style.setProperty('flex-direction','column','important');
+    el.style.setProperty('gap','12px','important');
+    el.style.setProperty('width','100%','important');
+    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.minWidth='0'; });
   });
+  // Also fix profit summary 3-col → smaller but keep 3-col (stat cards are small enough)
+  const pfSum = document.getElementById('profit-summary-row');
+  if (pfSum) {
+    pfSum.style.setProperty('gap','8px','important');
+  }
 }
 
 // Run on resize too

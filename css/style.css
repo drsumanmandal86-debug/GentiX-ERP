@@ -498,23 +498,52 @@ textarea.form-control{resize:vertical;min-height:70px}
     width:100%!important;
   }
 
-  /* Ledger: stack, form first */
+  /* Ledger: stack, form first — !important to override JS makeMobileReady */
   #ledger-top-row{
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    margin-bottom:12px;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:12px!important;
+    margin-bottom:12px!important;
+    width:100%!important;
   }
+  #ledger-top-row > *{ width:100%!important; margin-bottom:8px!important; }
   #ledger-main-grid{
-    display:flex;
-    flex-direction:column;
-    gap:14px;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:14px!important;
+    width:100%!important;
   }
   #ledger-form-col{
-    order:-1; /* Form সবার উপরে */
-    position:static!important; /* sticky বাদ */
+    order:-1!important;
+    position:static!important;
+    width:100%!important;
+    min-width:0!important;
   }
-  #ledger-table-col{order:1}
+  #ledger-table-col{
+    order:1!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  /* Profit & Expense Tracker: single column */
+  #pf-main-grid{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:14px!important;
+    width:100%!important;
+  }
+  #pf-main-grid > *{
+    width:100%!important;
+    min-width:0!important;
+    margin-bottom:0!important;
+  }
+  .pf-breakdown-grid{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:12px!important;
+    width:100%!important;
+  }
+  .pf-breakdown-grid > *{ width:100%!important; min-width:0!important; }
 
   /* Ledger form — bigger touch targets */
   #ledger-form-col .form-control{

@@ -53,7 +53,7 @@ const ledgerModule = (() => {
       fetchProfitData();
     }
     if (typeof makeMobileReady === 'function' && typeof isMobile === 'function' && isMobile()) {
-      setTimeout(makeMobileReady, 50);
+      setTimeout(makeMobileReady, 150);
     }
   }
 
@@ -434,16 +434,6 @@ const ledgerModule = (() => {
   function renderProfitLayout() {
     if (activeTab !== 'profit') return;
     document.getElementById('ledger-tab-content').innerHTML = `
-    <style>
-      .pf-main-grid{display:grid;grid-template-columns:1fr 1.8fr;gap:1.2rem}
-      .pf-breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-      @media(max-width:768px){
-        .pf-main-grid{grid-template-columns:1fr}
-        .pf-breakdown-grid{grid-template-columns:1fr}
-        #profit-summary-row .stat-card{padding:10px 8px}
-        #profit-summary-row .stat-value{font-size:18px!important}
-      }
-    </style>
 
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px" id="profit-summary-row">
       <div class="stat-card"><div class="stat-label">Total Withdrawn</div><div class="stat-value sv-green" id="pf-withdrawn">৳0</div></div>
@@ -451,7 +441,7 @@ const ledgerModule = (() => {
       <div class="stat-card"><div class="stat-label">Balance in Hand</div><div class="stat-value sv-orange" id="pf-balance">৳0</div></div>
     </div>
 
-    <div class="pf-main-grid">
+    <div id="pf-main-grid" style="display:grid;grid-template-columns:1fr 1.8fr;gap:1.2rem">
       <div class="table-card" style="border-top:5px solid #16a34a">
         <div style="padding:20px">
           <h5 style="color:#16a34a;font-weight:700;margin-bottom:16px"><i class="bi bi-wallet2"></i> New Entry</h5>
@@ -493,7 +483,7 @@ const ledgerModule = (() => {
       </div>
 
       <div>
-        <div class="pf-breakdown-grid">
+        <div class="pf-breakdown-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
           <div class="table-card" style="overflow:hidden">
             <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:14px"><i class="bi bi-piggy-bank-fill me-2" style="color:#16a34a"></i>Income by Source (Lifetime)</div>
             <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Source</th><th style="text-align:center">Txns</th><th style="text-align:right">Amount</th></tr></thead>
