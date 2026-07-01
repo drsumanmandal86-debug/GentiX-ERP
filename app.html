@@ -430,6 +430,16 @@ function makeMobileReady() {
   document.querySelectorAll('.main-content [style*="padding:20px"], .main-content [style*="padding: 20px"]').forEach(el => {
     el.style.padding = '14px';
   });
+
+  // 12. Profit Tracker — class-based grids (not caught by inline style scanner)
+  document.querySelectorAll('.pf-main-grid').forEach(el => {
+    el.style.setProperty('grid-template-columns', '1fr', 'important');
+    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='12px'; });
+  });
+  document.querySelectorAll('.pf-breakdown-grid').forEach(el => {
+    el.style.setProperty('grid-template-columns', '1fr', 'important');
+    Array.from(el.children).forEach(c => { c.style.width='100%'; c.style.marginBottom='12px'; });
+  });
 }
 
 // Run on resize too
