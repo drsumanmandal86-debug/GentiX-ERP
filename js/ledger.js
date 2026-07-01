@@ -101,7 +101,7 @@ const ledgerModule = (() => {
     if (activeTab !== 'lending') return;
     document.getElementById('ledger-tab-content').innerHTML = `
 
-    <div id="ledger-top-row">
+    <div id="ledger-top-row" style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem">
       <div class="table-card" style="padding:16px;text-align:center">
         <small style="color:#6b7280;text-transform:uppercase;font-weight:700;font-size:11px">Overall Net Balance</small>
         <div id="topNetBalance" style="font-size:26px;font-weight:800;color:#3949ab;margin:6px 0">৳ 0</div>
@@ -114,7 +114,7 @@ const ledgerModule = (() => {
       </div>
     </div>
 
-    <div id="ledger-main-grid">
+    <div id="ledger-main-grid" style="display:grid;grid-template-columns:1fr 2fr;gap:1.2rem">
 
       <div id="ledger-form-col" class="table-card" style="padding:18px">
         <h5 style="font-weight:700;color:#212529;margin-bottom:16px">

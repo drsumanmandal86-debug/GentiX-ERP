@@ -439,21 +439,8 @@ textarea.form-control{resize:vertical;min-height:70px}
   #fb-left-col{order:1;width:100%}
 }
 
-/* Ledger — mobile-first: block by default */
-#ledger-top-row{display:block;margin-bottom:12px}
-#ledger-top-row > *{margin-bottom:10px;display:block}
-#ledger-main-grid{display:block}
-#ledger-main-grid > *{margin-bottom:12px;width:100%}
-#ledger-form-col{position:static!important}
-
-/* Desktop only: 2-column grid */
-@media(min-width:769px){
-  #ledger-top-row{display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem}
-  #ledger-top-row > *{margin-bottom:0}
-  #ledger-main-grid{display:grid;grid-template-columns:1fr 2fr;gap:1rem}
-  #ledger-main-grid > *{margin-bottom:0}
-  #ledger-form-col{position:sticky!important;top:20px!important}
-}
+/* Ledger */
+#ledger-form-col{position:sticky;top:20px}
 
 @media(max-width:768px){
   /* FB Tracker: stack, Daily Sync first */
@@ -498,91 +485,14 @@ textarea.form-control{resize:vertical;min-height:70px}
     width:100%!important;
   }
 
-  /* Ledger: stack, form first — !important to override JS makeMobileReady */
-  #ledger-top-row{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:12px!important;
-    margin-bottom:12px!important;
-    width:100%!important;
-  }
-  #ledger-top-row > *{ width:100%!important; margin-bottom:8px!important; }
-  #ledger-main-grid{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:14px!important;
-    width:100%!important;
-  }
-  #ledger-form-col{
-    order:-1!important;
-    position:static!important;
-    width:100%!important;
-    min-width:0!important;
-  }
-  #ledger-table-col{
-    order:1!important;
-    width:100%!important;
-    min-width:0!important;
-  }
-
-  /* Profit & Expense Tracker: single column */
-  #pf-main-grid{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:14px!important;
-    width:100%!important;
-  }
-  #pf-main-grid > *{
-    width:100%!important;
-    min-width:0!important;
-    margin-bottom:0!important;
-  }
-  .pf-breakdown-grid{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:12px!important;
-    width:100%!important;
-  }
-  .pf-breakdown-grid > *{ width:100%!important; min-width:0!important; }
-
-  /* Ledger form — bigger touch targets */
-  #ledger-form-col .form-control{
-    height:46px!important;
-    font-size:15px!important;
-  }
-  #ledger-form-col #ledgerSaveBtn{
-    padding:14px!important;
-    font-size:15px!important;
-  }
-  /* Ledger form-grid single col */
-  #ledger-form-col .form-grid{
-    grid-template-columns:1fr!important;
-    gap:8px;
-  }
-  /* Ledger search input full width */
-  #ledger-top-row .search-box{
-    width:100%!important;
-  }
-  /* Ledger top row balance card */
-  #ledger-top-row > *:first-child{
-    padding:14px!important;
-  }
-  /* Ledger tables scroll */
-  #ledger-table-col [style*="max-height"]{
-    max-height:260px!important;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-  }
-  #ledger-table-col .data-table{
-    min-width:480px;
-  }
-  /* Name dropdown full width */
-  #nameDropdown{
-    font-size:15px!important;
-  }
-  #nameDropdown > div{
-    padding:13px 14px!important;
-  }
+  /* Ledger form — mobile touch targets */
+  #ledger-form-col .form-control{ height:46px!important; font-size:15px!important; }
+  #ledger-form-col #ledgerSaveBtn{ padding:14px!important; font-size:15px!important; }
+  #nameDropdown{ font-size:15px!important; }
+  #nameDropdown > div{ padding:13px 14px!important; }
+  /* Profit form touch targets */
+  #pf-main-grid .form-control{ height:44px!important; font-size:15px!important; }
+  #pfSaveBtn{ padding:14px!important; font-size:15px!important; }
 }
 
 /* Print */
