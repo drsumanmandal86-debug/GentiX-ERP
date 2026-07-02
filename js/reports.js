@@ -235,9 +235,10 @@ const reportsModule = (() => {
         <table class="data-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th style="text-align:right">Amount</th></tr></thead>
         <tbody id="txLogBody"></tbody></table>
       </div>
-      <div style="padding:10px 16px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
-        <small id="logPageInfo" style="color:#9ca3af"></small>
-        <div id="logPagination" style="display:flex;gap:4px"></div>
+      <div style="padding:10px 16px;border-top:1px solid #f3f4f6;display:flex;justify-content:center;align-items:center;gap:10px">
+        <button class="btn btn-outline btn-sm" id="logPrevBtn" onclick="reportsModule.goToLogPage(_logPage-1)">◀</button>
+        <small id="logPageInfo" style="color:#6b7280;font-weight:600"></small>
+        <button class="btn btn-outline btn-sm" id="logNextBtn" onclick="reportsModule.goToLogPage(_logPage+1)">▶</button>
       </div>
     </div>`;
   }
@@ -516,21 +517,18 @@ const reportsModule = (() => {
       <td style="text-align:right;font-weight:700;padding-right:14px;color:${r.type==='Sale'?'#27ae60':'#e74c3c'}">${fmt(r.amount)}</td>
     </tr>`).join('');
     setEl('logCount',_logData.length+' records');
-    setEl('logPageInfo',`Showing ${start+1}–${end} of ${_logData.length}`);
-    const totalPgs=Math.ceil(_logData.length/LOG_PER);
-    const pg=document.getElementById('logPagination');
-    if(pg){
-      let html='';
-      for(let i=1;i<=totalPgs;i++){
-        if(i===1||i===totalPgs||(i>=_logPage-1&&i<=_logPage+1)){
-          html+=`<button onclick="reportsModule.goToLogPage(${i})" class="btn btn-outline btn-sm" style="${i===_logPage?'background:#3949ab;color:#fff;border-color:#3949ab':''};padding:4px 10px;font-size:12px">${i}</button>`;
-        } else if(i===_logPage-2||i===_logPage+2){html+='<span style="padding:4px 4px;color:#9ca3af">…</span>';}
-      }
-      pg.innerHTML=html;
-    }
+    const totalPgs=Math.ceil(_logData.length/LOG_PER)||1;
+    setEl('logPageInfo',`Page ${_logPage} of ${totalPgs}`);
+    const prev=document.getElementById('logPrevBtn'),next=document.getElementById('logNextBtn');
+    if(prev)prev.disabled=_logPage<=1;
+    if(next)next.disabled=_logPage>=totalPgs;
   }
 
-  function goToLogPage(p){_logPage=p;renderLogPage();}
+  function goToLogPage(p){
+    const tp=Math.ceil(_logData.length/LOG_PER)||1;
+    if(p<1||p>tp)return;
+    _logPage=p;renderLogPage();
+  }
 
   function setEl(id,v){const el=document.getElementById(id);if(el)el.innerHTML=v;}
 
