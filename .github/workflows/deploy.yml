@@ -11,8 +11,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
       - name: Install Firebase Tools
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@latest
 
       - name: Deploy to Firebase Hosting
-        run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}" --project mini-erp-gentix
+        run: firebase deploy --only hosting --non-interactive --project mini-erp-gentix
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
