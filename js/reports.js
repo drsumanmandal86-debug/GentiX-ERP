@@ -236,9 +236,9 @@ const reportsModule = (() => {
         <tbody id="txLogBody"></tbody></table>
       </div>
       <div style="padding:10px 16px;border-top:1px solid #f3f4f6;display:flex;justify-content:center;align-items:center;gap:10px">
-        <button class="btn btn-outline btn-sm" id="logPrevBtn" onclick="reportsModule.goToLogPage(_logPage-1)">◀</button>
+        <button class="btn btn-outline btn-sm" id="logPrevBtn" onclick="reportsModule.changeLogPage(-1)">◀</button>
         <small id="logPageInfo" style="color:#6b7280;font-weight:600"></small>
-        <button class="btn btn-outline btn-sm" id="logNextBtn" onclick="reportsModule.goToLogPage(_logPage+1)">▶</button>
+        <button class="btn btn-outline btn-sm" id="logNextBtn" onclick="reportsModule.changeLogPage(1)">▶</button>
       </div>
     </div>`;
   }
@@ -529,6 +529,7 @@ const reportsModule = (() => {
     if(p<1||p>tp)return;
     _logPage=p;renderLogPage();
   }
+  function changeLogPage(step){goToLogPage(_logPage+step);}
 
   function setEl(id,v){const el=document.getElementById(id);if(el)el.innerHTML=v;}
 
@@ -547,5 +548,5 @@ const reportsModule = (() => {
     }
   }
 
-  return{load,setQuickFilter,generateReport,updateGoalCalc,goToLogPage,_sTap};
+  return{load,setQuickFilter,generateReport,updateGoalCalc,goToLogPage,changeLogPage,_sTap};
 })();
