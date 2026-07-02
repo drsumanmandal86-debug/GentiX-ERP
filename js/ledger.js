@@ -303,8 +303,9 @@ const ledgerModule = (() => {
     btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…';
 
     try {
-      const snap = await window.db.collection('personalLedger').where('personName','==',name).orderBy('date','desc').limit(1).get();
-      const lastBal = snap.empty ? 0 : (snap.docs[0].data().runBalance || 0);
+      // Use in-memory allHistory to avoid composite index requirement
+      const personEntries = allHistory.filter(e => e.personName === name);
+      const lastBal = personEntries.length > 0 ? (personEntries[0].runBalance || 0) : 0;
       const runBalance = lastBal + paid - spent;
 
       await window.db.collection('personalLedger').add({
