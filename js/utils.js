@@ -41,6 +41,12 @@ window.fmtDate = (date) => {
   });
 };
 
+// Combine a YYYY-MM-DD date and HH:MM time into one display string
+window.fmtDateTime = (date, time) => {
+  const d = fmtDate(date);
+  return time ? `${d}, ${time}` : d;
+};
+
 window.genId = (prefix = 'ID') => {
   const ts = Date.now().toString(36).toUpperCase();
   const rand = Math.random().toString(36).substr(2, 4).toUpperCase();

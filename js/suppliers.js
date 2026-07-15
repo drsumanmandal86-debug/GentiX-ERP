@@ -183,11 +183,11 @@ const suppliersModule = (() => {
         const c = d.data();
         if (c.type !== 'Supplier') return; // only supplier payments
         const amt = c.cashOut||c.amount||0;
-        if (amt > 0) entries.push({ date: c.date||'', desc: `Payment: ${c.particulars||'Supplier Payment'}`, debit: 0, credit: amt, type:'payment' });
+        if (amt > 0) entries.push({ date: c.date||'', time: c.time||'', desc: `Payment: ${c.particulars||'Supplier Payment'}${c.bankName?' via '+c.bankName:''}`, debit: 0, credit: amt, type:'payment' });
       });
 
-      // Sort by date ascending, calculate running balance
-      entries.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      // Sort by date (then time) ascending, calculate running balance
+      entries.sort((a,b) => (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||''));
       let bal = 0;
       entries.forEach(e => { bal += e.debit - e.credit; e.balance = bal; });
 
@@ -241,7 +241,7 @@ const suppliersModule = (() => {
                 const bc = e.balance>0?'#e74c3c':e.balance<0?'#27ae60':'#9ca3af';
                 const rowBg = e.type==='payment'?'background:#f0fdf4':e.type==='prior'?'background:#fefce8':'';
                 return`<tr style="${rowBg}">
-                  <td style="white-space:nowrap;color:#6b7280">${e.date?fmtDate(e.date):'—'}</td>
+                  <td style="white-space:nowrap;color:#6b7280">${e.date?fmtDateTime(e.date,e.time):'—'}</td>
                   <td style="font-size:13px;color:${e.type==='prior'?'#92400e':'inherit'}">${e.desc}</td>
                   <td style="text-align:right;color:#e74c3c;font-weight:600">${e.debit>0?fmt(e.debit):'—'}</td>
                   <td style="text-align:right;color:#27ae60;font-weight:600">${e.credit>0?fmt(e.credit):'—'}</td>
@@ -340,7 +340,7 @@ const suppliersModule = (() => {
     <thead><tr><th>Date</th><th>Description</th><th class="r">Purchase (Dr)</th><th class="r">Payment (Cr)</th><th class="r">Balance Due</th></tr></thead>
     <tbody>
       ${rows.map(e=>`<tr class="${e.type==='payment'?'payment':e.type==='prior'?'prior':''}">
-        <td style="white-space:nowrap;color:#6b7280">${e.date?fmtDate(e.date):'—'}</td>
+        <td style="white-space:nowrap;color:#6b7280">${e.date?fmtDateTime(e.date,e.time):'—'}</td>
         <td>${e.desc}</td>
         <td class="r tk" style="color:#e74c3c">${e.debit>0?fmt(e.debit):'—'}</td>
         <td class="r tk" style="color:#27ae60">${e.credit>0?fmt(e.credit):'—'}</td>

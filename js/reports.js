@@ -35,6 +35,9 @@ const reportsModule = (() => {
           <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px"><i class="bi bi-clock-history"></i> Presets</span>
           ${[['today','Today'],['yesterday','Yesterday'],['7days','7 Days'],['30days','30 Days'],['thisMonth','This Month'],['lastMonth','Last Month'],['lifetime','∞ Lifetime']].map(([k,l])=>`
           <button id="btn-${k}" onclick="reportsModule.setQuickFilter('${k}')" class="time-filter">${l}</button>`).join('')}
+          <span style="width:1px;height:18px;background:#e5e7eb;margin:0 2px"></span>
+          <label for="repMonthPicker" style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;display:flex;align-items:center;gap:5px"><i class="bi bi-calendar3"></i> Pick Month</label>
+          <input type="month" id="repMonthPicker" class="form-control" style="width:150px;padding:5px 10px;font-size:12px" onchange="reportsModule.pickMonth(this.value)">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:flex-end">
           <div>
@@ -253,6 +256,17 @@ const reportsModule = (() => {
     else if(type==='thisMonth'){s=new Date(now.getFullYear(),now.getMonth(),1);}
     else if(type==='lastMonth'){s=new Date(now.getFullYear(),now.getMonth()-1,1);e=new Date(now.getFullYear(),now.getMonth(),0);}
     else if(type==='lifetime'){s=new Date(2020,0,1);}
+    const sEl=document.getElementById('repStartDate'),eEl=document.getElementById('repEndDate');
+    if(sEl)sEl.value=localDate(s);if(eEl)eEl.value=localDate(e);
+    const mEl=document.getElementById('repMonthPicker');if(mEl)mEl.value='';
+    generateReport();
+  }
+
+  function pickMonth(monthVal){
+    if(!monthVal)return;
+    document.querySelectorAll('.time-filter').forEach(b=>b.classList.remove('active'));
+    const [y,m]=monthVal.split('-').map(Number);
+    const s=new Date(y,m-1,1), e=new Date(y,m,0);
     const sEl=document.getElementById('repStartDate'),eEl=document.getElementById('repEndDate');
     if(sEl)sEl.value=localDate(s);if(eEl)eEl.value=localDate(e);
     generateReport();
@@ -548,5 +562,5 @@ const reportsModule = (() => {
     }
   }
 
-  return{load,setQuickFilter,generateReport,updateGoalCalc,goToLogPage,changeLogPage,_sTap};
+  return{load,setQuickFilter,pickMonth,generateReport,updateGoalCalc,goToLogPage,changeLogPage,_sTap};
 })();
