@@ -165,7 +165,10 @@ const ledgerModule = (() => {
         <div class="table-card" style="overflow:hidden">
           <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
             <span style="font-weight:700;font-size:14px">Full Transaction History</span>
-            <button class="btn btn-outline btn-sm" onclick="ledgerModule.load()"><i class="bi bi-arrow-clockwise"></i></button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="ledgerModule.printLedger()"><i class="bi bi-printer"></i> Print / Save</button>
+              <button class="btn btn-outline btn-sm" onclick="ledgerModule.load()"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
           </div>
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
             <table class="data-table" style="min-width:500px"><thead><tr>
@@ -641,10 +644,116 @@ const ledgerModule = (() => {
 
   function setEl(id,v){const el=document.getElementById(id);if(el)el.innerHTML=v;}
 
+  /* ── Print / Save Personal Ledger (respects current search filter) ── */
+  function printLedger() {
+    const rows = [...filteredHistory].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    if (!rows.length) { toast('কোনো ডেটা নেই','error'); return; }
+
+    const q = document.getElementById('searchPerson')?.value.trim();
+    const scopeLabel = q ? `Filtered: "${q}"` : 'All Entries';
+    const totalPaid = rows.reduce((s,e)=>s+(e.cashIn||0),0);
+    const totalSpent = rows.reduce((s,e)=>s+(e.cashOut||0),0);
+    const today = new Date().toLocaleDateString('en-BD',{day:'2-digit',month:'long',year:'numeric'});
+
+    const html=`<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><title>Personal Ledger — ${scopeLabel}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter','Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff}
+  .tk{font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  .page{max-width:960px;margin:0 auto;padding:30px 36px}
+  .hdr{border-bottom:3px solid #1e3a5f;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-end}
+  h1{font-size:19px;font-weight:800;color:#1e3a5f}
+  .sub{font-size:11px;color:#64748b;margin-top:3px}
+  .summary{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+  .sum-card{flex:1;min-width:140px;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;border-left:4px solid}
+  .sum-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .sum-val{font-size:18px;font-weight:800;margin-top:3px;font-family:'Noto Sans Bengali','Inter',Arial,sans-serif}
+  .sect-title{font-size:13px;font-weight:800;color:#1e3a5f;margin:20px 0 8px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:11px;font-weight:700;text-align:left}
+  th.r{text-align:right}
+  td{padding:7px 12px;border-bottom:1px solid #e9ecef;font-size:12px}
+  .r{text-align:right}
+  .footer{border-top:1px solid #e9ecef;padding-top:12px;margin-top:18px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
+  .no-print{background:#1e3a5f;color:#fff;padding:10px 36px;display:flex;gap:10px;align-items:center}
+  .bp{background:#fff;color:#1e3a5f;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  .bg{background:#22c55e;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-weight:800;cursor:pointer;font-size:12px}
+  @media print{.no-print{display:none}@page{margin:1cm;size:A4}}
+</style></head><body>
+<div class="no-print">
+  <button class="bp" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button class="bg" onclick="dlImg()">📷 Download as Image</button>
+</div>
+<div class="page" id="rpt">
+  <div class="hdr">
+    <div>
+      <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">GentiX Fashion ERP</div>
+      <h1>Personal Ledger — ${scopeLabel}</h1>
+      <div class="sub">Overall Net Balance: ${fmt(Math.abs(_lastNetBalance))} ${_lastNetBalance>0?'(Receivable)':_lastNetBalance<0?'(Payable)':'(Settled)'}</div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#64748b"><strong>Generated:</strong> ${today}</div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-card" style="border-left-color:#3949ab"><div class="sum-label">Transactions</div><div class="sum-val">${rows.length}</div></div>
+    <div class="sum-card" style="border-left-color:#27ae60"><div class="sum-label">Total Paid</div><div class="sum-val tk" style="color:#27ae60">${fmt(totalPaid)}</div></div>
+    <div class="sum-card" style="border-left-color:#e74c3c"><div class="sum-label">Total Spent</div><div class="sum-val tk" style="color:#e74c3c">${fmt(totalSpent)}</div></div>
+    <div class="sum-card" style="border-left-color:${(totalPaid-totalSpent)>=0?'#27ae60':'#e74c3c'}"><div class="sum-label">Net</div><div class="sum-val tk" style="color:${(totalPaid-totalSpent)>=0?'#27ae60':'#e74c3c'}">${fmt(totalPaid-totalSpent)}</div></div>
+  </div>
+
+  <div class="sect-title">Person-wise Net Balance</div>
+  <table>
+    <thead><tr><th>Name</th><th class="r">Total Paid</th><th class="r">Total Spent</th><th class="r">Net Balance</th></tr></thead>
+    <tbody>
+      ${_lastSummaries.map(r=>`<tr>
+        <td>${r.name}</td>
+        <td class="r tk" style="color:#27ae60">${fmt(r.paid)}</td>
+        <td class="r tk" style="color:#e74c3c">${fmt(r.spent)}</td>
+        <td class="r tk" style="font-weight:700;color:${r.balance>=0?'#27ae60':'#e74c3c'}">${fmt(Math.abs(r.balance))} ${r.balance>0?'(Receivable)':r.balance<0?'(Payable)':''}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+
+  <div class="sect-title">Full Transaction History</div>
+  <table>
+    <thead><tr><th>Date</th><th>Person &amp; Note</th><th class="r">Paid (+)</th><th class="r">Spent (-)</th><th class="r">Balance</th></tr></thead>
+    <tbody>
+      ${rows.map(r=>`<tr>
+        <td style="white-space:nowrap;color:#6b7280">${fmtDate(r.date)}</td>
+        <td>${r.personName}${r.note?' — '+r.note:''}</td>
+        <td class="r tk" style="color:#27ae60">${(r.cashIn||0)>0?fmt(r.cashIn):'—'}</td>
+        <td class="r tk" style="color:#e74c3c">${(r.cashOut||0)>0?fmt(r.cashOut):'—'}</td>
+        <td class="r tk" style="font-weight:700">${fmt(Math.abs(r.runBalance||0))}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer"><div>GentiX Fashion ERP — Personal Ledger Report</div><div>${today}</div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+async function dlImg(){
+  const np=document.querySelectorAll('.no-print');
+  np.forEach(e=>e.style.display='none');
+  const c=await html2canvas(document.getElementById('rpt'),{scale:2,backgroundColor:'#fff',useCORS:true});
+  np.forEach(e=>e.style.display='flex');
+  const a=document.createElement('a');
+  a.download='Personal_Ledger_${new Date().toISOString().substring(0,10)}.png';
+  a.href=c.toDataURL('image/png');a.click();
+}
+</script>
+</body></html>`;
+
+    const win=window.open('','_blank','width=1000,height=750,scrollbars=yes');
+    win.document.write(html); win.document.close();
+  }
+
   return {
     load, switchTab,
     // lending
-    toggleDropdown, selectName, filterNames, filterHistory, saveEntry, showManageNames, addName, removeName, showEdit, updateEntry, delEntry, changePage,
+    toggleDropdown, selectName, filterNames, filterHistory, saveEntry, showManageNames, addName, removeName, showEdit, updateEntry, delEntry, changePage, printLedger,
     // profit tracker
     toggleProfitCategory, saveProfitEntry, delProfitEntry, changeProfitPage, fetchProfitData
   };

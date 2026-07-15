@@ -4,6 +4,7 @@ const expensesModule = (() => {
   const PER_PAGE = 10;
   const CATEGORIES = ['Rent','Electricity','Salary','Transport','Internet','Tea/Snacks','Packaging','Meta/Facebook Ads','Loan Adjustment','Savings','Others'];
   let filterCategory = '', filterStatus = '', filterFrom = '', filterTo = '';
+  let _reconcileCandidates = [];
 
   const localDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
@@ -53,6 +54,7 @@ const expensesModule = (() => {
         <div style="padding:13px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
           <h5 style="font-weight:700;color:#6b7280;margin:0"><i class="bi bi-clock-history"></i> Expenses History</h5>
           <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="expensesModule.previewReconcileFbAds()" title="Sync Meta/Facebook Ads Cash Book payments with expense Paid/Unpaid status"><i class="bi bi-arrow-repeat"></i> Reconcile FB Ads</button>
             <button class="btn btn-outline btn-sm" onclick="expensesModule.printLedger()"><i class="bi bi-printer"></i> Print / Save</button>
             <button class="btn btn-outline btn-sm" onclick="expensesModule.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
           </div>
@@ -344,5 +346,96 @@ async function dlImg(){
     win.document.write(html); win.document.close();
   }
 
-  return { load, handleCategory, saveExpense, showEdit, update, del, changePage, refresh, applyFilter, pickMonth, clearFilter, printLedger };
+  /* ── Reconcile FB Ads: sync Cash Book payments to Meta/Facebook Ads with expense Paid/Unpaid status ──
+     Cash Book payments to a supplier only decrement the supplier's aggregate currentDue — they never
+     touch the individual `expenses` line items created by the FB Ad Tracker. Over time this leaves
+     expenses stuck at status:'Unpaid' even though cash was already paid out via Cash Book. This tool
+     computes how much of that historical payment hasn't been reflected yet, and offers to mark the
+     oldest unpaid transactions as Paid (whole-transaction only, oldest-first) up to that amount. */
+  async function previewReconcileFbAds() {
+    try {
+      const suppSnap = await window.db.collection('suppliers').where('name','==','Meta/Facebook Ads').get();
+      if (suppSnap.empty) { toast('Meta/Facebook Ads supplier khuje pawa jayni (Suppliers module dekhun)','error'); return; }
+      const supplierId = suppSnap.docs[0].id;
+
+      const cbSnap = await window.db.collection('cashBook').where('type','==','Supplier').where('refId','==',supplierId).get();
+      const totalPaidViaCashBook = cbSnap.docs.reduce((s,d)=>s+(d.data().cashOut||d.data().amount||0),0);
+
+      const fbExpenses = allExpenses.filter(e=>e.category==='Meta/Facebook Ads');
+      const alreadyPaid = fbExpenses.filter(e=>(e.status||'Paid')==='Paid').reduce((s,e)=>s+(e.amount||0),0);
+      const unreconciled = totalPaidViaCashBook - alreadyPaid;
+
+      const unpaidList = fbExpenses.filter(e=>e.status==='Unpaid').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      _reconcileCandidates = [];
+      let remaining = Math.max(0, unreconciled);
+      for (const exp of unpaidList) {
+        if ((exp.amount||0) > remaining) break;
+        _reconcileCandidates.push(exp);
+        remaining -= (exp.amount||0);
+      }
+      const coveredTotal = _reconcileCandidates.reduce((s,e)=>s+(e.amount||0),0);
+
+      if (unreconciled <= 0) {
+        openModal('Reconcile FB Ads Payment Status', `
+          <div style="padding:10px 0;color:#27ae60;font-weight:600"><i class="bi bi-check-circle-fill"></i> Already up to date — Cash Book-e paid (${fmt(totalPaidViaCashBook)}) already ${fmt(alreadyPaid)} Paid expense-er sathe match kore geche. Notun kono action lagbe na.</div>`,
+          `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
+        return;
+      }
+      if (!_reconcileCandidates.length) {
+        openModal('Reconcile FB Ads Payment Status', `
+          <div style="padding:10px 0;color:#f59e0b;font-weight:600"><i class="bi bi-exclamation-triangle-fill"></i> Unreconciled amount ${fmt(unreconciled)}, kintu shobcheye purono unpaid transaction-o (${fmt(unpaidList[0]?.amount||0)}) eta diye pura cover hocche na — tai kichu mark kora hoyni.</div>`,
+          `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
+        return;
+      }
+
+      openModal('Reconcile FB Ads Payment Status', `
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #3949ab">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Paid via Cash Book</small>
+            <strong style="font-size:16px;color:#3949ab">${fmt(totalPaidViaCashBook)}</strong>
+          </div>
+          <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #27ae60">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Already marked Paid</small>
+            <strong style="font-size:16px;color:#27ae60">${fmt(alreadyPaid)}</strong>
+          </div>
+          <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #f59e0b">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Unreconciled</small>
+            <strong style="font-size:16px;color:#f59e0b">${fmt(unreconciled)}</strong>
+          </div>
+        </div>
+        <p style="font-size:13px;color:#374151;margin-bottom:10px">Nicher <strong>${_reconcileCandidates.length}টি</strong> shobcheye purono unpaid transaction (mot ${fmt(coveredTotal)}) <strong>Paid</strong> hishebe mark kora hobe:</p>
+        <div style="max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+          <table class="data-table"><thead><tr><th>Date</th><th>Particulars</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            ${_reconcileCandidates.map(e=>`<tr>
+              <td style="white-space:nowrap;color:#6b7280">${fmtDate(e.date)}</td>
+              <td>${e.particulars||'—'}</td>
+              <td style="text-align:right;font-weight:700;color:#e74c3c">${fmt(e.amount)}</td>
+            </tr>`).join('')}
+          </tbody></table>
+        </div>
+        ${remaining>0?`<p style="font-size:12px;color:#9ca3af;margin-top:8px">Baki ${fmt(remaining)} kono purbo transaction-e pura cover hocche na, tai chhoa hoyni.</p>`:''}`,
+        `<button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+         <button class="btn btn-primary" onclick="expensesModule.applyReconcileFbAds()"><i class="bi bi-check-circle"></i> Confirm &amp; Apply</button>`,
+        'modal-lg');
+    } catch(e) { toast('Error: '+e.message,'error'); }
+  }
+
+  async function applyReconcileFbAds() {
+    if (!_reconcileCandidates.length) { closeModal(); return; }
+    try {
+      const batch = window.db.batch();
+      _reconcileCandidates.forEach(exp => {
+        batch.update(window.db.collection('expenses').doc(exp.id), { status:'Paid', reconciledAt: firebase.firestore.FieldValue.serverTimestamp() });
+      });
+      await batch.commit();
+      const total = _reconcileCandidates.reduce((s,e)=>s+(e.amount||0),0);
+      closeModal();
+      toast(`${_reconcileCandidates.length}টি transaction (${fmt(total)}) Paid হিসেবে mark হয়েছে`,'success');
+      _reconcileCandidates = [];
+      await fetchExpenses();
+    } catch(e) { toast('Error: '+e.message,'error'); }
+  }
+
+  return { load, handleCategory, saveExpense, showEdit, update, del, changePage, refresh, applyFilter, pickMonth, clearFilter, printLedger, previewReconcileFbAds, applyReconcileFbAds };
 })();
