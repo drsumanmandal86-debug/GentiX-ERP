@@ -346,26 +346,37 @@ async function dlImg(){
     win.document.write(html); win.document.close();
   }
 
-  /* ── Reconcile FB Ads: sync Cash Book payments to Meta/Facebook Ads with expense Paid/Unpaid status ──
+  /* ── Reconcile FB Ads: sync Cash Book payments to Meta/Facebook Ads with expense Paid/Unpaid status
+     AND correct any drift in the supplier's currentDue ──
      Cash Book payments to a supplier only decrement the supplier's aggregate currentDue — they never
-     touch the individual `expenses` line items created by the FB Ad Tracker. Over time this leaves
-     expenses stuck at status:'Unpaid' even though cash was already paid out via Cash Book. This tool
-     computes how much of that historical payment hasn't been reflected yet, and offers to mark the
-     oldest unpaid transactions as Paid (whole-transaction only, oldest-first) up to that amount. */
+     touch the individual `expenses` line items created by the FB Ad Tracker. Also, currentDue is only
+     ever incremented if the "Meta/Facebook Ads" supplier record already existed at the time an ad spend
+     was logged (fbtracker.js silently skips the increment otherwise) — so currentDue can drift below the
+     true lifetime total even when the Paid/Unpaid flags are accurate. This tool recomputes the correct
+     due directly from source (lifetime spent − lifetime paid), fixes the supplier record to match, and
+     marks the oldest unpaid transactions as Paid (whole-transaction only, oldest-first) up to whatever
+     portion of the lifetime payment total isn't already reflected in Paid expenses. */
+  let _reconcileSupplierId = '', _reconcileCorrectDue = 0;
+
   async function previewReconcileFbAds() {
     try {
       const suppSnap = await window.db.collection('suppliers').where('name','==','Meta/Facebook Ads').get();
       if (suppSnap.empty) { toast('Meta/Facebook Ads supplier khuje pawa jayni (Suppliers module dekhun)','error'); return; }
-      const supplierId = suppSnap.docs[0].id;
+      const supplierDoc = suppSnap.docs[0];
+      const supplierId = supplierDoc.id;
+      const recordedDue = supplierDoc.data().currentDue || 0;
 
       const cbSnap = await window.db.collection('cashBook').where('type','==','Supplier').where('refId','==',supplierId).get();
-      const totalPaidViaCashBook = cbSnap.docs.reduce((s,d)=>s+(d.data().cashOut||d.data().amount||0),0);
+      const lifetimePaid = cbSnap.docs.reduce((s,d)=>s+(d.data().cashOut||d.data().amount||0),0);
 
       const fbExpenses = allExpenses.filter(e=>e.category==='Meta/Facebook Ads');
+      const lifetimeSpent = fbExpenses.reduce((s,e)=>s+(e.amount||0),0);
       const alreadyPaid = fbExpenses.filter(e=>(e.status||'Paid')==='Paid').reduce((s,e)=>s+(e.amount||0),0);
-      const unreconciled = totalPaidViaCashBook - alreadyPaid;
+      const correctDue = lifetimeSpent - lifetimePaid;
+      const dueDrift = recordedDue - correctDue;
 
       const unpaidList = fbExpenses.filter(e=>e.status==='Unpaid').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      const unreconciled = lifetimePaid - alreadyPaid;
       _reconcileCandidates = [];
       let remaining = Math.max(0, unreconciled);
       for (const exp of unpaidList) {
@@ -374,37 +385,40 @@ async function dlImg(){
         remaining -= (exp.amount||0);
       }
       const coveredTotal = _reconcileCandidates.reduce((s,e)=>s+(e.amount||0),0);
+      _reconcileSupplierId = Math.abs(dueDrift)>1 ? supplierId : '';
+      _reconcileCorrectDue = correctDue;
 
-      if (unreconciled <= 0) {
+      if (!_reconcileCandidates.length && Math.abs(dueDrift)<=1) {
         openModal('Reconcile FB Ads Payment Status', `
-          <div style="padding:10px 0;color:#27ae60;font-weight:600"><i class="bi bi-check-circle-fill"></i> Already up to date — Cash Book-e paid (${fmt(totalPaidViaCashBook)}) already ${fmt(alreadyPaid)} Paid expense-er sathe match kore geche. Notun kono action lagbe na.</div>`,
-          `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
-        return;
-      }
-      if (!_reconcileCandidates.length) {
-        openModal('Reconcile FB Ads Payment Status', `
-          <div style="padding:10px 0;color:#f59e0b;font-weight:600"><i class="bi bi-exclamation-triangle-fill"></i> Unreconciled amount ${fmt(unreconciled)}, kintu shobcheye purono unpaid transaction-o (${fmt(unpaidList[0]?.amount||0)}) eta diye pura cover hocche na — tai kichu mark kora hoyni.</div>`,
+          <div style="padding:10px 0;color:#27ae60;font-weight:600"><i class="bi bi-check-circle-fill"></i> Already accurate — lifetime spent (${fmt(lifetimeSpent)}) − lifetime paid (${fmt(lifetimePaid)}) already matches recorded Due ebong Paid/Unpaid status. Notun kono action lagbe na.</div>`,
           `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
         return;
       }
 
       openModal('Reconcile FB Ads Payment Status', `
-        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-          <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #3949ab">
-            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Paid via Cash Book</small>
-            <strong style="font-size:16px;color:#3949ab">${fmt(totalPaidViaCashBook)}</strong>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #3949ab">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Lifetime Spent</small>
+            <strong style="font-size:16px;color:#3949ab">${fmt(lifetimeSpent)}</strong>
           </div>
-          <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #27ae60">
-            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Already marked Paid</small>
-            <strong style="font-size:16px;color:#27ae60">${fmt(alreadyPaid)}</strong>
+          <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #27ae60">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Lifetime Paid (Cash Book)</small>
+            <strong style="font-size:16px;color:#27ae60">${fmt(lifetimePaid)}</strong>
           </div>
-          <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #f59e0b">
-            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Unreconciled</small>
-            <strong style="font-size:16px;color:#f59e0b">${fmt(unreconciled)}</strong>
+          <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid ${Math.abs(dueDrift)>1?'#e74c3c':'#27ae60'}">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Dashboard Due (recorded)</small>
+            <strong style="font-size:16px;color:${Math.abs(dueDrift)>1?'#e74c3c':'#27ae60'}">${fmt(recordedDue)}</strong>
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;border-left:3px solid #3949ab">
+            <small style="color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;display:block">Correct Due (recalculated)</small>
+            <strong style="font-size:16px;color:#3949ab">${fmt(correctDue)}</strong>
           </div>
         </div>
-        <p style="font-size:13px;color:#374151;margin-bottom:10px">Nicher <strong>${_reconcileCandidates.length}টি</strong> shobcheye purono unpaid transaction (mot ${fmt(coveredTotal)}) <strong>Paid</strong> hishebe mark kora hobe:</p>
-        <div style="max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+        ${Math.abs(dueDrift)>1?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:14px;color:#991b1b;font-size:13px">
+          <i class="bi bi-exclamation-triangle-fill"></i> Dashboard-e dekhano Due, accurate hisheb theke ${fmt(Math.abs(dueDrift))} ${dueDrift>0?'beshi':'kom'} dekhachhe — shombhoboto kichu purono FB Ad expense "Meta/Facebook Ads" supplier record create howar age log hoyeche, tai currentDue-e jog hoyni. Apply korle eta ${fmt(correctDue)}-e correct hoye jabe.
+        </div>`:''}
+        ${_reconcileCandidates.length?`<p style="font-size:13px;color:#374151;margin-bottom:10px">Nicher <strong>${_reconcileCandidates.length}টি</strong> shobcheye purono unpaid transaction (mot ${fmt(coveredTotal)}) <strong>Paid</strong> hishebe mark kora hobe:</p>
+        <div style="max-height:220px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
           <table class="data-table"><thead><tr><th>Date</th><th>Particulars</th><th style="text-align:right">Amount</th></tr></thead>
           <tbody>
             ${_reconcileCandidates.map(e=>`<tr>
@@ -414,7 +428,7 @@ async function dlImg(){
             </tr>`).join('')}
           </tbody></table>
         </div>
-        ${remaining>0?`<p style="font-size:12px;color:#9ca3af;margin-top:8px">Baki ${fmt(remaining)} kono purbo transaction-e pura cover hocche na, tai chhoa hoyni.</p>`:''}`,
+        ${remaining>0?`<p style="font-size:12px;color:#9ca3af;margin-top:8px">Baki ${fmt(remaining)} kono purbo transaction-e pura cover hocche na, tai chhoa hoyni.</p>`:''}`:`<p style="font-size:13px;color:#9ca3af">Paid/Unpaid status already accurate ache — shudhu Due value-ta correct kora hobe.</p>`}`,
         `<button class="btn btn-outline" onclick="closeModal()">Cancel</button>
          <button class="btn btn-primary" onclick="expensesModule.applyReconcileFbAds()"><i class="bi bi-check-circle"></i> Confirm &amp; Apply</button>`,
         'modal-lg');
@@ -422,17 +436,23 @@ async function dlImg(){
   }
 
   async function applyReconcileFbAds() {
-    if (!_reconcileCandidates.length) { closeModal(); return; }
+    if (!_reconcileCandidates.length && !_reconcileSupplierId) { closeModal(); return; }
     try {
       const batch = window.db.batch();
       _reconcileCandidates.forEach(exp => {
         batch.update(window.db.collection('expenses').doc(exp.id), { status:'Paid', reconciledAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
+      if (_reconcileSupplierId) {
+        batch.update(window.db.collection('suppliers').doc(_reconcileSupplierId), { currentDue: _reconcileCorrectDue });
+      }
       await batch.commit();
       const total = _reconcileCandidates.reduce((s,e)=>s+(e.amount||0),0);
       closeModal();
-      toast(`${_reconcileCandidates.length}টি transaction (${fmt(total)}) Paid হিসেবে mark হয়েছে`,'success');
-      _reconcileCandidates = [];
+      const parts = [];
+      if (_reconcileCandidates.length) parts.push(`${_reconcileCandidates.length}টি transaction (${fmt(total)}) Paid mark`);
+      if (_reconcileSupplierId) parts.push(`Due correct kore ${fmt(_reconcileCorrectDue)}`);
+      toast(parts.join(' + ')+' করা হয়েছে','success');
+      _reconcileCandidates = []; _reconcileSupplierId=''; _reconcileCorrectDue=0;
       await fetchExpenses();
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
