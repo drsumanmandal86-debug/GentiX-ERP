@@ -55,6 +55,7 @@ const expensesModule = (() => {
           <h5 style="font-weight:700;color:#6b7280;margin:0"><i class="bi bi-clock-history"></i> Expenses History</h5>
           <div style="display:flex;gap:8px">
             <button class="btn btn-outline btn-sm" onclick="expensesModule.previewReconcileFbAds()" title="Sync Meta/Facebook Ads Cash Book payments with expense Paid/Unpaid status"><i class="bi bi-arrow-repeat"></i> Reconcile FB Ads</button>
+            <button class="btn btn-outline btn-sm" onclick="expensesModule.auditFbAds()" title="Find duplicate supplier records or mislinked Meta/FB transactions"><i class="bi bi-search"></i> Audit FB Ads</button>
             <button class="btn btn-outline btn-sm" onclick="expensesModule.printLedger()"><i class="bi bi-printer"></i> Print / Save</button>
             <button class="btn btn-outline btn-sm" onclick="expensesModule.refresh()"><i class="bi bi-arrow-clockwise"></i></button>
           </div>
@@ -346,6 +347,81 @@ async function dlImg(){
     win.document.write(html); win.document.close();
   }
 
+  /* ── Audit FB Ads: find data-integrity issues that would make Reconcile's numbers wrong ──
+     Reconcile trusts (a) there's exactly one "Meta/Facebook Ads" supplier record and (b) every real
+     Cash Book payment to it is a clean `type:'Supplier'` entry with `refId` pointing at that record.
+     If either assumption breaks — a duplicate supplier doc, or a payment logged as a different type,
+     or with a typo'd category — Reconcile will silently under/over-count. This is read-only: it just
+     surfaces suspects for a human to judge, since deciding whether a stray entry "really" belongs to
+     Meta/Facebook Ads needs judgment this tool can't make on its own. */
+  async function auditFbAds() {
+    try {
+      const suppSnap = await window.db.collection('suppliers').where('name','==','Meta/Facebook Ads').get();
+      const supplierDocs = suppSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const supplierIds = supplierDocs.map(s=>s.id);
+
+      const [cbAllSnap, expAllSnap] = await Promise.all([
+        window.db.collection('cashBook').get(),
+        window.db.collection('expenses').get()
+      ]);
+      const allCb  = cbAllSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const allExp = expAllSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+      const kw = /meta|facebook|\bfb\b/i;
+
+      // Cash Book entries that mention Meta/Facebook/FB but aren't a clean Supplier payment to a known Meta supplier id
+      const unlinkedCb = allCb.filter(c => kw.test(c.particulars||'') && !(c.type==='Supplier' && supplierIds.includes(c.refId)));
+      const unlinkedCbTotal = unlinkedCb.reduce((s,c)=>s+(c.cashOut||c.amount||0),0);
+
+      // Expense entries whose category resembles Meta/Facebook Ads but isn't an exact match (would be silently excluded from lifetime-spent calc)
+      const unlinkedExp = allExp.filter(e => { const cat=(e.category||'').trim(); return kw.test(cat) && cat!=='Meta/Facebook Ads'; });
+      const unlinkedExpTotal = unlinkedExp.reduce((s,e)=>s+(e.amount||0),0);
+
+      openModal('Audit: Meta/Facebook Ads Data Integrity', `
+        <div style="margin-bottom:16px">
+          <strong style="font-size:13px">Supplier records named "Meta/Facebook Ads":</strong> ${supplierDocs.length}
+          ${supplierDocs.length>1
+            ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-top:8px;color:#991b1b;font-size:13px"><i class="bi bi-exclamation-triangle-fill"></i> <strong>${supplierDocs.length}টি duplicate supplier record</strong> paoya geche! Cash Book-er kono payment ekটার against jete pare r Dashboard onno ekটার currentDue dekhay — eta boro mismatch-er karon hote pare.</div>`
+            : `<div style="color:#27ae60;font-size:13px;margin-top:4px"><i class="bi bi-check-circle-fill"></i> Duplicate nei.</div>`}
+          ${supplierDocs.map(s=>`<div style="font-size:12px;color:#6b7280;margin-top:4px">ID: <code>${s.id}</code> — currentDue: ${fmt(s.currentDue||0)}</div>`).join('')}
+        </div>
+
+        <div style="margin-bottom:16px">
+          <strong style="font-size:13px">Cash Book-e "Meta/Facebook/FB" shobdo ache emon transaction, kintu Supplier Payment hishebe properly linked na:</strong> ${unlinkedCb.length}
+          ${unlinkedCb.length ? `
+          <div style="max-height:220px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;margin-top:8px">
+            <table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Particulars</th><th style="text-align:right">Cash Out</th></tr></thead>
+            <tbody>${unlinkedCb.map(c=>`<tr>
+              <td style="white-space:nowrap;color:#6b7280">${fmtDate(c.date)}</td>
+              <td>${c.type||'—'}</td>
+              <td>${c.particulars||'—'}</td>
+              <td style="text-align:right;font-weight:700;color:#e74c3c">${fmt(c.cashOut||c.amount||0)}</td>
+            </tr>`).join('')}</tbody></table>
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#9ca3af">Mot: ${fmt(unlinkedCbTotal)} — ei transaction gulo real FB ad payment hole, tader <code>type</code>/<code>refId</code> thik kore Meta/Facebook Ads supplier-er sathe link korte hobe jate Reconcile eগুলো dhorte pare.</div>`
+            : `<div style="color:#27ae60;font-size:13px;margin-top:4px"><i class="bi bi-check-circle-fill"></i> Kichu paoya jayni — shob FB-related Cash Book entry thik link kora ache.</div>`}
+        </div>
+
+        <div>
+          <strong style="font-size:13px">Expense-e "Meta/Facebook/FB" shobdo ache emon category, kintu "Meta/Facebook Ads" exact match na (miscategorized hote pare):</strong> ${unlinkedExp.length}
+          ${unlinkedExp.length ? `
+          <div style="max-height:220px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;margin-top:8px">
+            <table class="data-table"><thead><tr><th>Date</th><th>Category</th><th>Particulars</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody>${unlinkedExp.map(e=>`<tr>
+              <td style="white-space:nowrap;color:#6b7280">${fmtDate(e.date)}</td>
+              <td>${e.category||'—'}</td>
+              <td>${e.particulars||'—'}</td>
+              <td style="text-align:right;font-weight:700;color:#e74c3c">${fmt(e.amount||0)}</td>
+            </tr>`).join('')}</tbody></table>
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#9ca3af">Mot: ${fmt(unlinkedExpTotal)}</div>`
+            : `<div style="color:#27ae60;font-size:13px;margin-top:4px"><i class="bi bi-check-circle-fill"></i> Kichu paoya jayni.</div>`}
+        </div>`,
+        `<button class="btn btn-outline" onclick="closeModal()">Close</button>`,
+        'modal-lg');
+    } catch(e) { toast('Error: '+e.message,'error'); }
+  }
+
   /* ── Reconcile FB Ads: sync Cash Book payments to Meta/Facebook Ads with expense Paid/Unpaid status
      AND correct any drift in the supplier's currentDue ──
      Cash Book payments to a supplier only decrement the supplier's aggregate currentDue — they never
@@ -457,5 +533,5 @@ async function dlImg(){
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
-  return { load, handleCategory, saveExpense, showEdit, update, del, changePage, refresh, applyFilter, pickMonth, clearFilter, printLedger, previewReconcileFbAds, applyReconcileFbAds };
+  return { load, handleCategory, saveExpense, showEdit, update, del, changePage, refresh, applyFilter, pickMonth, clearFilter, printLedger, previewReconcileFbAds, applyReconcileFbAds, auditFbAds };
 })();
