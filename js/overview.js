@@ -4,6 +4,7 @@ const overviewModule = (() => {
   let allSales=[], allExpenses=[], allProducts=[], allCash=[];
   let currentPeriod = 'thisMonth';
   let pickedMonth = '';
+  let customFrom = '', customTo = '';
 
   const localDate = d => {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -148,6 +149,13 @@ const overviewModule = (() => {
           ${PERIODS.map(([k,l])=>`<button class="ov-pb${k===currentPeriod?' active':''}" id="ovbtn-${k}" onclick="overviewModule.setPeriod('${k}')">${l}</button>`).join('')}
           <button class="ov-pb${currentPeriod==='pickMonth'?' active':''}" id="ovbtn-pickMonth" onclick="overviewModule.toggleMonthPicker()" title="যেকোনো মাস বেছে নিন" style="display:flex;align-items:center;gap:4px"><i class="bi bi-calendar3"></i> Pick Month</button>
           <input type="month" id="ov-month-picker" style="display:none;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" onchange="overviewModule.setPickMonth(this.value)">
+          <button class="ov-pb${currentPeriod==='custom'?' active':''}" id="ovbtn-custom" onclick="overviewModule.toggleCustomRange()" title="যেকোনো তারিখ থেকে তারিখ বেছে নিন" style="display:flex;align-items:center;gap:4px"><i class="bi bi-calendar-range"></i> Custom Date</button>
+          <div id="ov-custom-range" style="display:none;align-items:center;gap:6px">
+            <input type="date" id="ov-custom-from" value="${customFrom}" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 8px;border-radius:8px;font-size:12px">
+            <span style="color:#64748b;font-size:11px">to</span>
+            <input type="date" id="ov-custom-to" value="${customTo}" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:5px 8px;border-radius:8px;font-size:12px">
+            <button class="ov-pb" style="padding:5px 10px" onclick="overviewModule.applyCustomRange()">Go</button>
+          </div>
         </div>
       </div>
 
@@ -311,7 +319,33 @@ const overviewModule = (() => {
     const btn=document.getElementById('ovbtn-pickMonth');
     if(btn){btn.classList.add('active');const[y,mo]=val.split('-');btn.innerHTML=`<i class="bi bi-calendar3"></i> ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]} ${y}`;}
     const picker=document.getElementById('ov-month-picker');if(picker)picker.style.display='none';
+    const box=document.getElementById('ov-custom-range');if(box)box.style.display='none';
     renderChart('pickMonth');
+  }
+
+  function toggleCustomRange(){
+    const box=document.getElementById('ov-custom-range');
+    if(!box)return;
+    const isHidden=box.style.display==='none'||!box.style.display;
+    box.style.display=isHidden?'flex':'none';
+    if(isHidden){
+      const picker=document.getElementById('ov-month-picker');if(picker)picker.style.display='none';
+      const fEl=document.getElementById('ov-custom-from'),tEl=document.getElementById('ov-custom-to');
+      if(fEl&&!fEl.value)fEl.value=customFrom||localDate(new Date());
+      if(tEl&&!tEl.value)tEl.value=customTo||localDate(new Date());
+    }
+  }
+
+  function applyCustomRange(){
+    const fEl=document.getElementById('ov-custom-from'),tEl=document.getElementById('ov-custom-to');
+    const f=fEl?.value,t=tEl?.value;
+    if(!f||!t){toast('তারিখ পরিসর সম্পূর্ণ করুন','error');return;}
+    if(f>t){toast('শুরুর তারিখ শেষের তারিখের পরে হতে পারবে না','error');return;}
+    customFrom=f;customTo=t;
+    currentPeriod='custom';
+    document.querySelectorAll('[id^="ovbtn-"]').forEach(b=>b.classList.remove('active'));
+    const btn=document.getElementById('ovbtn-custom');if(btn)btn.classList.add('active');
+    renderChart('custom');
   }
 
   function printBreakdown(){
@@ -383,16 +417,18 @@ async function dlImg(){
     currentPeriod=p;
     document.querySelectorAll('[id^="ovbtn-"]').forEach(b=>b.classList.remove('active'));
     const btn=document.getElementById('ovbtn-'+p);if(btn)btn.classList.add('active');
+    const box=document.getElementById('ov-custom-range');if(box)box.style.display='none';
     renderChart(p);
   }
 
   function renderChart(period){
-    const{s:fromDs,e:toDs}=periodToRange(period);
+    const{s:fromDs,e:toDs}=periodToRange(period,customFrom,customTo);
     const costMap={};allProducts.forEach(p=>{if(p.name)costMap[p.name.trim().toLowerCase()]=p.buyPrice||0;});
 
     // Daily view for single-month/week periods; Monthly view for multi-month periods
     const DAILY_PERIODS=['today','yesterday','thisWeek','lastWeek','thisMonth','lastMonth','pickMonth'];
-    const isDaily=DAILY_PERIODS.includes(period);
+    const daySpan=(new Date(toDs)-new Date(fromDs))/86400000;
+    const isDaily=DAILY_PERIODS.includes(period)||(period==='custom'&&daySpan<=62);
     const keyFn=ds=>isDaily?ds:ds.substring(0,7);
 
     const monthData={};
@@ -491,6 +527,7 @@ async function dlImg(){
     if(titleEl){
       let titleTxt=isDaily?'Daily Breakdown':'Monthly Breakdown';
       if(period==='pickMonth'&&pickedMonth){const[y,mo]=pickedMonth.split('-');titleTxt=`Daily Breakdown — ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]} ${y}`;}
+      else if(period==='custom'&&customFrom&&customTo){titleTxt=`${isDaily?'Daily':'Monthly'} Breakdown — ${fmtDate(customFrom)} to ${fmtDate(customTo)}`;}
       titleEl.innerHTML=`<i class="bi bi-table me-2" style="color:#3949ab"></i>${titleTxt}`;
     }
     const thPeriod=document.querySelector('#ov-monthly-table')?.closest('table')?.querySelector('th');
@@ -1079,5 +1116,5 @@ async function downloadImage(){
     }, 100);
   }
 
-  return{load,setPeriod,runComparison,toggleCustom,generateAuditReport,toggleMonthPicker,setPickMonth,printBreakdown,setAuditPreset};
+  return{load,setPeriod,runComparison,toggleCustom,generateAuditReport,toggleMonthPicker,setPickMonth,toggleCustomRange,applyCustomRange,printBreakdown,setAuditPreset};
 })();
