@@ -353,12 +353,17 @@ async function dlImg(){
      If either assumption breaks — a duplicate supplier doc, or a payment logged as a different type,
      or with a typo'd category — Reconcile will silently under/over-count. This is read-only: it just
      surfaces suspects for a human to judge, since deciding whether a stray entry "really" belongs to
-     Meta/Facebook Ads needs judgment this tool can't make on its own. */
+     Meta/Facebook Ads needs judgment this tool can't make on its own. Once a human confirms a stray
+     entry IS a real Meta/Facebook Ads payment, "Relink" converts it into a proper Supplier payment
+     (type:'Supplier', refId: the supplier) so Reconcile picks it up on the next run. */
+  let _auditSupplierId = '';
+
   async function auditFbAds() {
     try {
       const suppSnap = await window.db.collection('suppliers').where('name','==','Meta/Facebook Ads').get();
       const supplierDocs = suppSnap.docs.map(d=>({id:d.id,...d.data()}));
       const supplierIds = supplierDocs.map(s=>s.id);
+      _auditSupplierId = supplierDocs[0]?.id || '';
 
       const [cbAllSnap, expAllSnap] = await Promise.all([
         window.db.collection('cashBook').get(),
@@ -390,15 +395,16 @@ async function dlImg(){
           <strong style="font-size:13px">Cash Book-e "Meta/Facebook/FB" shobdo ache emon transaction, kintu Supplier Payment hishebe properly linked na:</strong> ${unlinkedCb.length}
           ${unlinkedCb.length ? `
           <div style="max-height:220px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;margin-top:8px">
-            <table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Particulars</th><th style="text-align:right">Cash Out</th></tr></thead>
+            <table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Particulars</th><th style="text-align:right">Cash Out</th><th>Action</th></tr></thead>
             <tbody>${unlinkedCb.map(c=>`<tr>
               <td style="white-space:nowrap;color:#6b7280">${fmtDate(c.date)}</td>
               <td>${c.type||'—'}</td>
               <td>${c.particulars||'—'}</td>
               <td style="text-align:right;font-weight:700;color:#e74c3c">${fmt(c.cashOut||c.amount||0)}</td>
+              <td>${_auditSupplierId?`<button class="btn btn-outline btn-sm" onclick="expensesModule.relinkCashBookToFbAds('${c.id}')">Relink</button>`:'—'}</td>
             </tr>`).join('')}</tbody></table>
           </div>
-          <div style="margin-top:6px;font-size:12px;color:#9ca3af">Mot: ${fmt(unlinkedCbTotal)} — ei transaction gulo real FB ad payment hole, tader <code>type</code>/<code>refId</code> thik kore Meta/Facebook Ads supplier-er sathe link korte hobe jate Reconcile eগুলো dhorte pare.</div>`
+          <div style="margin-top:6px;font-size:12px;color:#9ca3af">Mot: ${fmt(unlinkedCbTotal)} — real FB ad payment hole "Relink" click korun, tahole eta Meta/Facebook Ads-er proper Supplier Payment hishebe count hobe. Tarpor "Reconcile FB Ads" abar chalan.</div>`
             : `<div style="color:#27ae60;font-size:13px;margin-top:4px"><i class="bi bi-check-circle-fill"></i> Kichu paoya jayni — shob FB-related Cash Book entry thik link kora ache.</div>`}
         </div>
 
@@ -419,6 +425,19 @@ async function dlImg(){
         </div>`,
         `<button class="btn btn-outline" onclick="closeModal()">Close</button>`,
         'modal-lg');
+    } catch(e) { toast('Error: '+e.message,'error'); }
+  }
+
+  async function relinkCashBookToFbAds(cbId) {
+    if (!_auditSupplierId) { toast('Meta/Facebook Ads supplier ID paoya jayni','error'); return; }
+    if (!confirm('Ei transaction-take Meta/Facebook Ads-er Supplier Payment hishebe relink korte chan?\n\nEr por "Reconcile FB Ads" abar chalale eta due calculation-e count hobe.')) return;
+    try {
+      await window.db.collection('cashBook').doc(cbId).update({
+        type: 'Supplier', refId: _auditSupplierId,
+        relinkedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast('Relink kora hoyeche! Ekhon "Reconcile FB Ads" chalan due thik korar jonno.','success');
+      await auditFbAds();
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
@@ -533,5 +552,5 @@ async function dlImg(){
     } catch(e) { toast('Error: '+e.message,'error'); }
   }
 
-  return { load, handleCategory, saveExpense, showEdit, update, del, changePage, refresh, applyFilter, pickMonth, clearFilter, printLedger, previewReconcileFbAds, applyReconcileFbAds, auditFbAds };
+  return { load, handleCategory, saveExpense, showEdit, update, del, changePage, refresh, applyFilter, pickMonth, clearFilter, printLedger, previewReconcileFbAds, applyReconcileFbAds, auditFbAds, relinkCashBookToFbAds };
 })();
